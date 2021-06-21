@@ -72,11 +72,11 @@ bam_files <- readLines(bam_files_list_file)
 
 in_col_num <- dim(fread(circrna_ids_file, nrows = 1, header = F))[2]
 
-if(in_col_num == 1) {
+if (in_col_num == 1) {
   ## input is a list
   circrna_ids <- fread(circrna_ids_file, header = F, col.names = "circ_id")
 }
-if(in_col_num > 1) {
+if (in_col_num > 1) {
   ## input is a table (the reliable circRNA expression matrix)
   circrna_ids <- fread(circrna_ids_file, select = "circ_id")
 }
@@ -88,9 +88,9 @@ circrna_ids[, c("chr", "start", "stop") := tstrsplit(circ_id, ":|-",
 sn_unique_circ <-
   melt(unique(circrna_ids[, .(circ_id,
                               chr,
-                              start = as.integer(start+1),
+                              start = as.integer(start + 1),
                               stop = as.integer(stop))]),
-                       id.vars = c("chr", "circ_id"))
+       id.vars = c("chr", "circ_id"))
 
 sn_unique_circ_gtf <-
   sn_unique_circ[, .(chr, ".", variable, start = value, stop = value,
@@ -129,7 +129,7 @@ lin_bks_counts <-
   data.table(fc_linear_backsplices$counts,
              keep.rownames = "circ_id")
 
-if(tidy_sample_names) {
+if (tidy_sample_names) {
   colnames(lin_bks_counts) <-
     sub("\\.hisat2\\.bam", "", basename(colnames(lin_bks_counts)))
 }
