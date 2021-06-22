@@ -15,7 +15,7 @@ get_circrnas_per_method <-
     fread(circrnas_gtf)[V6 >= minreads,
                         .(n_circrnas = .N),
                         by = .(sample_id = sub('.*sample_id "([^"]+)";.*',
-                                               '\\1', V9),
+                                               "\\1", V9),
                                #V1, V4, V5, V7,
                                Method = V2)]
   }
@@ -429,43 +429,27 @@ merge_findcirc <- function(labels, inputs, output = "") {
 }
 
 
-#' Filter CIRCexplorer2 predictions and reshape into matrix format
+#' Filter the CirComPara2 output and reshape it into a rectangular matrix format
 #'
-#' @param input
-#' @param min_reads
-#' @param min_methods
-#' @param output
+#' Filter CirComPara2 predictions and reshape into matrix format after filtering
+#' by minimum read count and number of detecting methods.
+#' Stranded input is automatically detected
+#'
+#' @param input_file CircRNA expression table file in 'long' format.
+#' @param min_reads The minimum detection read threshold for a circRNA
+#' in at least one sample
+#' @param min_methods Keep circRNAs commonly detected by >= min_methods circRNA
+#' detection methods in at least one sample
+#' @param output_file output directory
 #'
 #' @return
+#' @import data.table
 #' @export
 #'
 #' @examples
-filter_and_cast_circexp <- function(input, min_reads = 2, min_methods = 2,
-                                    output = "") {
-  #------------------------------------------------------------------------------#
-  option_list <- list(
-    make_option(c("-i", "--input"), action = "store", type = "character",
-                help = "CircRNA expression table file in 'long' format."),
-    make_option(c("-r", "--min_reads"), action = "store", type = "integer",
-                default = 2,
-                help = "The minimum detection read threshold for a circRNA  (in at least one sample)"),
-    make_option(c("-m", "--min_methods"), action = "store", type = "integer",
-                default = 2,
-                help = "Keep circRNAs commonly detected by >= m circRNA detection methods (in at least one sample)"),
-    make_option(c("-o", "--output"), action = "store", type = "character",
-                default = "./",
-                help = "Output file name")
-  )
-
-  parser <- OptionParser(usage = paste0("%prog -i bks.counts.union.csv -r 2 -m 2 ",
-                                        "-o circexp_count_matrix.csv"),
-                         option_list = option_list)
-  arguments <- parse_args(parser, positional_arguments = F)
-
-  input_file <- arguments$input
-  min_reads <- arguments$min_reads
-  min_methods <- arguments$min_methods
-  output_file <- arguments$output
+filter_and_cast_circexp <- function(input_file,
+                                    min_reads = 2, min_methods = 2,
+                                    output_file = "ce2.csv") {
 
   tab <- fread(input_file,
                header = T,
@@ -478,114 +462,85 @@ filter_and_cast_circexp <- function(input, min_reads = 2, min_methods = 2,
     tab[, circ_id := paste0(chr, ":", start, "-", end)]
   }
 
-  ## TODO: print out some statistics of the filtering
-
-  fwrite(x = dcast(tab, circ_id ~ sample_id, value.var = "read.count", fill = 0),
+  fwrite(x = dcast(tab,
+                   circ_id ~ sample_id,
+                   value.var = "read.count",
+                   fill = 0),
          file = output_file,
          sep = "\t",
          row.names = F,
          col.names = T)
-
 }
 
-filter_findcirc_res <- function() {
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
+#' Filter Findcirc output
+#'
+#' Filter Findcirc output to keep good circRNAs
+#'
+#' @param input Findcirc result table file (circ_candidates.bed)
+#' @param output The output file
+#' @param minqual Minimum quality of backsplice end mapping
+#' @param filter_tags Comma separated list of tags that have to be present in
+#' rows of the Find_circ BED file
+#' @import data.table
+#' @return a table file
+filter_findcirc_res <- function(input,
+                                output = "filteredFindcirc.bed",
+                                minqual = 40,
+                                flags = "CIRCULAR") {
 
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
+  flags <- unlist(strsplit(filter_tags, ","))
 
-  option_list <- list(
-    make_option(c("-i", "--input"), action = "store", type = "character",
-                help = "Findcirc result table file"),
-    make_option(c("-q", "--minqual"), action = "store", type = "integer",
-                default = 40,
-                help = "Minimum quality of backsplice end mapping"),
-    make_option(c("-f", "--filter_tags"), action = "store", type = "character",
-                default = 'CIRCULAR',
-                help = "Comma separated list of flags that have to be present in rows of the Find_circ BED file"),
-    make_option(c("-o", "--output"), action = "store", type = "character",
-                default = "filteredFindcirc.bed", help = "The output file")
-  )
-
-  parser <- OptionParser(usage = "%prog -i circ_candidates.bed -q 40 -f CIRCULAR -o filteredFindcirc.bed",
-                         option_list = option_list,
-                         description = "Filter Findcirc results by quality")
-  arguments <- parse_args(parser, positional_arguments = F)
-  input <- arguments$input
-  output <- arguments$output
-  minqual <- arguments$minqual
-  flags <- unlist(strsplit(arguments$filter_tags, ','))
   if (length(flags) < 1) {
-    flags <- '.'
+    flags <- "."
   }
 
-  circ_candidates.bed <-
+  circ_candidates_bed <-
     fread(cmd = paste0(c(paste0("grep -v '^#' ", input),
                          flags),
                        collapse = " | grep -w "),
           showProgress = F)
 
-  if (nrow(circ_candidates.bed) > 0) {
-    circ_candidates.bed <- circ_candidates.bed[V9 >= minqual & V10 >= minqual]
+  if (nrow(circ_candidates_bed) > 0) {
+    circ_candidates_bed <- circ_candidates_bed[V9 >= minqual & V10 >= minqual]
   }
 
-  write.table(x = circ_candidates.bed,
-              file = output, row.names = F, quote = F, sep = "\t", col.names = F)
-
+  fwrite(x = circ_candidates_bed,
+         file = output,
+         row.names = F,
+         quote = F,
+         sep = "\t",
+         col.names = F)
 }
 
-
-filter_segemehl.R	 <- function() {
-
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
-
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
+#'
+#' @param input Segemehl result table file (SAMPLE.sngl.bed)
+#' @param trns_file The *trns.txt file output by Segemehl. Add this file to
+#' consider backsplices > 20K bps (unmapped_1.fastq.trns.txt)
+#' @param min_qual Filter function and minimum mapping quality of
+#' backsplice-reads. Function supported:
+#' - median: for each backsplice compute the read mapping median quality and
+#' discard backsplices with median quality <= N
+#' - mean: as for median, but compute the mean instead
+#' - any: first, discard any alignment with mapping quality <= N. Then, report
+#' the median as the backsplice quality
+#' @param count_output Output BED format file to save the filtered circRNAs.
+#' A 7th column is added to report the read count, but it's just a copy of the
+#' score field.
+#' @param reads_output The output file to store the backsplice reads
+#' @param legacy_output The filename for Segemehl splicesites.bed in Segemehl
+#' < v0.3 format
+#' @param keep_mates Whether to include /1 or /2 in read names to distinguish
+#' read mates
+#' @import data.table
+filter_segemehl	<- function(input,
+                               trns_file = NULL,
+                               min_qual = "median_10",
+                               count_output = "splicesites.bed",
+                               reads_output = "SAMPLE_circular_reads.bed.gz",
+                               keep_mates = F,
+                               legacy_output = "old_splicesites.bed") {
 
   options(scipen = 999)
-
-  option_list <- list(
-    make_option(c("-i", "--input"), action = "store", type = "character",
-                default = "sample.sngl.bed",
-                help = "Segemehl result table file"),
-    make_option(c("-q", "--minqual"), action = "store", type = "character",
-                default = "median_10",
-                help = paste("Filter function and minimum mapping quality of backsplice-reads. ",
-                             "Function supported: ",
-                             "- median: for each backsplice compute the read mapping median quality and discard backsplices with median quality <= N",
-                             "- mean: as for median, but compute the mean instead",
-                             "- any: first, discard any alignment with mapping quality <= N. Then, report the median as backsplice quality",
-                             sep = "\n")),
-    make_option(c("-o", "--count_output"), action = "store", type = "character",
-                default = "splicesites.bed",
-                help = "The filtered circrnas in BED format. The 7th column is just a copy of the score field and reports the read count."),
-    make_option(c("-r", "--reads_output"), action = "store", type = "character",
-                default = "sample.circular.reads.bed.gz",
-                help = "The output file"),
-    make_option(c("-m", "--keep_mates"), action = "store_true", #type = "logical",
-                default = F,
-                help = "Whether to include /1 or /2 in read names to distinguish readmates"),
-    make_option(c("-t", "--trns_file"), action = "store", type = "character",
-                default = "unmapped_1.fastq.trns.txt",
-                help = "The *trns.txt file output by Segemehl"),
-    make_option(c("-l", "--legacy_output"), action = "store", type = "character",
-                default = "old_splicesites.bed",
-                help = "The filename for Segemehl splicesites.bed in Segemehl < v0.3 format")
-  )
-
-  parser <- OptionParser(usage = paste0("%prog -i sample.sngl.bed -q median_10 -o splicesites.bed",
-                                        " -r sample.circular.reads.bed.gz -t unmapped_1.fastq.trns.txt"),
-                         option_list = option_list,
-                         description = "Filter segemehl results by alignments' quality and compute backsplices' read count")
-  arguments <- parse_args(parser, positional_arguments = F)
-  input <- arguments$input
-  count_output <- arguments$count_output
-  reads_output <- arguments$reads_output
-  min.qual <- arguments$minqual
-  trns.file <- arguments$trns_file
-  old_output <- arguments$legacy_output
 
   split.qual.par <- strsplit(min.qual, "_", fixed = T)[[1]]
   if (length(split.qual.par) > 1) {
@@ -657,7 +612,7 @@ filter_segemehl.R	 <- function() {
 
   if (nrow(sege_circ) > 0) {
 
-    if (arguments$keep_mates) {
+    if (keep_mates) {
       sege_circ[, c("read.group", "type", "read.name",
                     "mate.status"):=(tstrsplit(V4, ";"))][, read.name :=
                                                             paste0(read.name, "/",
@@ -754,36 +709,32 @@ switch_strand <- function(s) {
   ifelse(s == "+", "-", "+")
 }
 
-get_ce2_bwa_bks_reads <- function() {
-  #------------------------------------------------------------------------------#
 
-  #!/usr/bin/env Rscript
+#' Obtain the backspliced reads for the circRNAs predicted by CIRCexplorer2 on
+#' BWA mappings
+#'
+#' @param chimreads sample_bwa.sam.gz BED file transformed by
+#' get_ce2_bwa_circ_reads.py. The input file bearing the backspliced reads
+#' @param circrnas circularRNA_known.txt as output by CIRCexplorer2 annotate,
+#' or back_spliced_junction.bed as output by CIRCexplorer2 parse
+#' @param output The circRNA read IDs for each circRNA in compressed BED
+#' @param range Number of basepairs tolerated in realigning circRNAs from
+#' CIRCexplorer2 annotate
+#' @param discriminate_mates By default, reads will be collapsed by read ID and
+#' position. Enable this option to discriminate paired-end read mates by
+#' appending \1 or \2 to read IDs.
+#' @param stranded Do not consider strand of alignments. The reported strand
+#' will be copied from CIRCexplorer2 annotate results
+#' @import data.table
+#' @import R.utils
+get_bks_reads_ce2_bwa <- function(chimreads,
+                                  circrnas,
+                                  output = "circular.reads.bed.gz",
+                                  range = 10,
+                                  discriminate_mates = FALSE,
+                                  stranded = FALSE) {
 
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
-  suppressPackageStartupMessages(library(R.utils))
-
-  option_list <- list(
-    make_option(c("-r", "--chimreads"), action="store", type="character",
-                help="sample_bwa.sam.gz BED transformed by get_ce2_bwa_circ_reads.py"),
-    make_option(c("-c", "--circrnas"), action="store", type="character",
-                help="circularRNA_known.txt as output by CIRCexplorer2 annotate, or back_spliced_junction.bed as output by CIRCexplorer2 parse"),
-    make_option(c("-o", "--output"), action="store", type="character",
-                help="The circRNA read IDs for each circRNA in compressed BED (circular.reads.bed.gz)"),
-    make_option(c("-g", "--range"), action="store", type="integer", default = 10,
-                help="Number of basepairs tolerated in realigning circRNAs from CIRCexplorer2 annotate"),
-    make_option(c("-d", "--discriminate_mates"), action="store_true", default = FALSE,
-                help="By default, reads will be collapsed by read ID and position. Enable this option to discriminate paired-end read mates by appending \1 or \2 to read IDs."),
-    make_option(c("-s", "--stranded"), action="store_true", default = FALSE,
-                help="Do not consider strand of alignments. The reported strand will be copied from CIRCexplorer2 annotate results")
-  )
-
-  parser <-
-    OptionParser(usage="%prog -r sample_bwa.sam.gz -c circularRNA_known.txt -o circular.reads.bed.gz",
-                 option_list=option_list)
-  arguments <- parse_args(parser, positional_arguments=F)
-
-  orig.file <- arguments$circrnas
+  orig.file <- circrnas
 
   if (file.info(orig.file)$size > 0) {
 
@@ -796,18 +747,18 @@ get_ce2_bwa_bks_reads <- function() {
     orig.est <- orig.est[, .(V1, V2, V3, V5, V6)]
     orig.est$V1 <- as.character(orig.est$V1)
 
-    bks.reads.file <- arguments$chimreads
+    bks.reads.file <- chimreads
     bks.reads <- fread(bks.reads.file, showProgress = F)
     bks.reads$V1 <- as.character(bks.reads$V1)
 
     merge.fields <- c("V1", "V2", "V3")
-    if (arguments$stranded) {
+    if (stranded) {
       merge.fields <- c(merge.fields, "V6")
     }else{
       bks.reads <- unique(bks.reads[, .(V1, V2, V3, V4, V5)])
     }
 
-    if (arguments$discriminate_mates) {
+    if (discriminate_mates) {
       bks.reads[, V4 := paste0(V4, "/", V5)]
     }else{
       bks.reads <- bks.reads[, .(V5 = paste0(V5, collapse = ",")),
@@ -861,7 +812,7 @@ get_ce2_bwa_bks_reads <- function() {
       if (nrow(orig.est[V5 != 0]) > 0) {
 
         ## prepare tolerance intervals for coordinate fix
-        ext.range <- c(-arguments$range:arguments$range)
+        ext.range <- c(-range:range)
         ext.range <- ext.range[ext.range != 0]
         unfix.orig.est <-
           orig.est[V5 != 0, .(start = V2 + ext.range,
@@ -871,7 +822,7 @@ get_ce2_bwa_bks_reads <- function() {
         ## search the reads with the extended coordinates
         ## fixed.bks.reads will be the extended coordinates-found reads
         y.merge.fields <- c("V1", "start", "end")
-        if (arguments$stranded) {
+        if (stranded) {
           y.merge.fields <- c(y.merge.fields, "V6")
         }
         fixed.bks.reads <-
@@ -961,9 +912,9 @@ get_ce2_bwa_bks_reads <- function() {
               by = c("V1", "V2", "V3", "V6"), all.x = F, all.y = T)
     }
 
-    splitted.filename <- strsplit(arguments$output, ".", fixed = T)[[1]]
+    splitted.filename <- strsplit(output, ".", fixed = T)[[1]]
     if (tail(splitted.filename, 1) == "gz") {
-      tmp.outfile <- sub(".gz$", "", arguments$output)
+      tmp.outfile <- sub(".gz$", "", output)
     }
 
     annotated.chimout.junc <- annotated.chimout.junc[, .(V1, V2, V3, V4, V5, V6)]
@@ -975,44 +926,38 @@ get_ce2_bwa_bks_reads <- function() {
            row.names = F)
 
     if (tail(splitted.filename, 1) == "gz") {
-      gzip(tmp.outfile, destname = arguments$output)
+      gzip(tmp.outfile, destname = output)
     }
   }else{
     warning(paste("No circRNAs in input file", orig.file))
-    file.create(arguments$output)
+    file.create(output)
   }
 
 
 }
 
+#' Obtain the backspliced reads for the circRNAs predicted by CIRCexplorer2 on
+#' Segemehl mappings
+#'
+#' @param chimreads sample.sngl.bed plus sample.trns.txt merged bks read as
+#' from filter_testrealign.R
+#' @param circrnas circularRNA_known.txt as output by CIRCexplorer2 annotate,
+#' or back_spliced_junction.bed as output by CIRCexplorer2 parse
+#' @param output The circRNA read IDs for each circRNA in compressed BED
+#' @param range Number of basepairs tolerated in realigning circRNAs from
+#' CIRCexplorer2 annotate
+#' @param discriminate_mates By default, reads will be collapsed by read ID and
+#' position. Enable this option to discriminate paired-end read mates by
+#' appending \1 or \2 to read IDs.
+#' @import data.table
+#' @import R.utils
+get_bks_reads_ce2_segemehl <- function(chimreads,
+                                       circrnas,
+                                       output = "circular.reads.bed.gz",
+                                       range = 10,
+                                       discriminate_mates = FALSE) {
 
-get_ce2_segemehl_bks_reads <- function() {
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
-
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
-  suppressPackageStartupMessages(library(R.utils))
-
-  option_list <- list(
-    make_option(c("-r", "--chimreads"), action="store", type="character",
-                help="sample.sngl.bed plus sample.trns.txt merged bks read as from filter_testrealign.R"),
-    make_option(c("-c", "--circrnas"), action="store", type="character",
-                help="circularRNA_known.txt as output by CIRCexplorer2 annotate, or back_spliced_junction.bed as output by CIRCexplorer2 parse"),
-    make_option(c("-o", "--output"), action="store", type="character",
-                help="The circRNA read IDs for each circRNA in compressed BED (circular.reads.bed.gz)"),
-    make_option(c("-g", "--range"), action="store", type="integer", default = 10,
-                help="Number of basepairs tolerated in realigning circRNAs from CIRCexplorer2 annotate"),
-    make_option(c("-d", "--discriminate_mates"), action="store_true", default = FALSE,
-                help="By default, reads will be collapsed by read ID and position. Enable this option to discriminate paired-end read mates by appending \1 or \2 to read IDs.")
-  )
-
-  parser <-
-    OptionParser(usage="%prog -r sample.sngl.bed -c circularRNA_known.txt -o circular.reads.bed.gz",
-                 option_list=option_list)
-  arguments <- parse_args(parser, positional_arguments=F)
-
-  orig.file <- arguments$circrnas
+  orig.file <- circrnas
 
   if (file.info(orig.file)$size > 0) {
 
@@ -1025,7 +970,7 @@ get_ce2_segemehl_bks_reads <- function() {
     orig.est <- orig.est[, .(V1, V2, V3, V5, V6)]
     orig.est$V1 <- as.character(orig.est$V1)
 
-    bks.reads.file <- arguments$chimreads
+    bks.reads.file <- chimreads
     # bks.reads <-
     #     fread(bks.reads.file, showProgress = F,
     #           skip = 1)[grepl(";C|B;", V4)]
@@ -1038,7 +983,7 @@ get_ce2_segemehl_bks_reads <- function() {
     bks.reads <- fread(bks.reads.file, showProgress = F, header = F,
                        col.names = c("V1", "V2", "V3", "read.name", "V5", "V6"))
 
-    # if (arguments$discriminate_mates) {
+    # if (discriminate_mates) {
     #     bks.reads[, read.name :=
     #                   paste0(read.name, "/",
     #                          mate.status)]
@@ -1101,7 +1046,7 @@ get_ce2_segemehl_bks_reads <- function() {
 
       if (nrow(orig.est[V5 != 0]) > 0) {
         ## prepare tolerance intervals for coordinate fix
-        ext.range <- c(-arguments$range:arguments$range)
+        ext.range <- c(-range:range)
         ext.range <- ext.range[ext.range != 0]
         unfix.orig.est <-
           orig.est[V5 != 0, .(start = V2 + ext.range,
@@ -1188,9 +1133,9 @@ get_ce2_segemehl_bks_reads <- function() {
       annotated.chimout.junc <- bks.reads[, .(V1, V2, V3, V4, V6)]
     }
 
-    splitted.filename <- strsplit(arguments$output, ".", fixed = T)[[1]]
+    splitted.filename <- strsplit(output, ".", fixed = T)[[1]]
     if (tail(splitted.filename, 1) == "gz") {
-      tmp.outfile <- sub(".gz$", "", arguments$output)
+      tmp.outfile <- sub(".gz$", "", output)
     }
 
     annotated.chimout.junc <- annotated.chimout.junc[, .(V1, V2, V3, V4, V5, V6)]
@@ -1202,40 +1147,32 @@ get_ce2_segemehl_bks_reads <- function() {
            row.names = F)
 
     if (tail(splitted.filename, 1) == "gz") {
-      gzip(tmp.outfile, destname = arguments$output)
+      gzip(tmp.outfile, destname = output)
     }
 
   }else{
     warning(paste("No circRNAs in input file", orig.file))
-    file.create(arguments$output)
+    file.create(output)
   }
 
 }
 
-get_ce2_star_bks_reads <- function() {
-
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
-
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
-  suppressPackageStartupMessages(library(R.utils))
-
-  option_list <- list(
-    make_option(c("-r", "--chimreads"), action="store", type="character",
-                help="Chimeric.out.junction BED transformed by chimout_junc_to_bed.py"),
-    make_option(c("-c", "--circrnas"), action="store", type="character",
-                help="circularRNA_known.txt as output by CIRCexplorer2 annotate, or back_spliced_junction.bed as output by CIRCexplorer2 parse"),
-    make_option(c("-o", "--output"), action="store", type="character",
-                help="The circRNA read IDs for each circRNA in compressed BED (circular.reads.bed.gz)"),
-    make_option(c("-g", "--range"), action="store", type="integer", default = 10,
-                help="Number of basepairs tolerated in realigning circRNAs from CIRCexplorer2 annotate")
-  )
-
-  parser <-
-    OptionParser(usage="%prog -r Chimeric.out.junction.bed -c circularRNA_known.txt -g 10 -o circular.reads.bed.gz",
-                 option_list=option_list)
-  arguments <- parse_args(parser, positional_arguments=F)
+#' Obtain the backspliced reads for the circRNAs predicted by CIRCexplorer2 on
+#' STAR mappings
+#'
+#' @param chimreads Chimeric.out.junction BED transformed by
+#' chimout_junc_to_bed.py
+#' @param circrnas circularRNA_known.txt as output by CIRCexplorer2 annotate,
+#' or back_spliced_junction.bed as output by CIRCexplorer2 parse
+#' @param output The circRNA read IDs for each circRNA in compressed BED
+#' @param range Number of basepairs tolerated in realigning circRNAs from
+#' CIRCexplorer2 annotate
+#' @import data.table
+#' @import R.utils
+get_bks_reads_ce2_star <- function(chimreads,
+                                   circrnas,
+                                   output = "circular.reads.bed.gz",
+                                   range = 10) {
 
   orig.file <- arguments$circrnas
 
@@ -1309,30 +1246,22 @@ get_ce2_star_bks_reads <- function() {
 
 }
 
-get_ce2_th_bks_reads <- function() {
-
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
-
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
-  suppressPackageStartupMessages(library(R.utils))
-
-  option_list <- list(
-    make_option(c("-r", "--chimreads"), action="store", type="character",
-                help="back_spliced_junction.bed BED file output by CIRCexplorer parse TopHat >= v2.3.5"),
-    make_option(c("-c", "--circrnas"), action="store", type="character",
-                help="circularRNA_known.txt as output by CIRCexplorer2 annotate, or back_spliced_junction.bed as output by CIRCexplorer2 parse"),
-    make_option(c("-o", "--output"), action="store", type="character",
-                help="The circRNA read IDs for each circRNA in compressed BED (circular.reads.bed.gz)"),
-    make_option(c("-g", "--range"), action="store", type="integer", default = 10,
-                help="Number of basepairs tolerated in realigning circRNAs from CIRCexplorer2 annotate")
-  )
-
-  parser <-
-    OptionParser(usage="%prog -r back_spliced_junction.bed -c circularRNA_known.txt -o circular.reads.bed.gz",
-                 option_list=option_list)
-  arguments <- parse_args(parser, positional_arguments=F)
+#' Obtain the backspliced reads for the circRNAs predicted by CIRCexplorer2 on
+#' TopHat2 mappings
+#'
+#' @param chimreads back_spliced_junction.bed BED file output by CIRCexplorer
+#' parse TopHat >= v2.3.5
+#' @param circrnas circularRNA_known.txt as output by CIRCexplorer2 annotate,
+#' or back_spliced_junction.bed as output by CIRCexplorer2 parse
+#' @param output The circRNA read IDs for each circRNA in compressed BED
+#' @param range Number of basepairs tolerated in realigning circRNAs from
+#' CIRCexplorer2 annotate
+#' @import data.table
+#' @import R.utils
+get_bks_reads_ce2_th <- function(chimreads,
+                                 circrnas,
+                                 output = "circular.reads.bed.gz",
+                                 range = 10) {
 
   orig.file <- arguments$circrnas
 
@@ -1548,52 +1477,348 @@ get_ce2_th_bks_reads <- function() {
 
 }
 
+#' Obtain the backspliced reads for the circRNAs predicted by circRNA_finder
+#'
+#' @param chimreads Chimeric.out.junction BED filtered and formatted by
+#' cf_filterChimout.awk
+#' @param circrnas circularRNA_known.txt as output by CIRCexplorer2 annotate,
+#' or back_spliced_junction.bed as output by CIRCexplorer2 parse
+#' @param output The circRNA read IDs for each circRNA in compressed BED
+get_bks_reads_circrnaFinder <- function(chimreads,
+                                        circrnas,
+                                        output = "circular.reads.bed.gz") {
 
-get_circompara_counts <- function() {
+  orig.file <- arguments$circrnas
 
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
+  if (file.info(orig.file)$size > 0) {
 
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
+    orig.est <- fread(orig.file)[, .(orig = sum(V5)), by = .(V1, V2, V3, V6), ]
+    orig.est$V1 <- as.character(orig.est$V1)
 
-  option_list <- list(
-    make_option(c("-i", "--input"), action = "store", type = "character",
-                default = "circular.reads.bed.gz.txt",
-                help = "File with the list of circular.reads.bed.gz files to merge, each sample and method (default: circular.reads.bed.gz.txt)"),
-    make_option(c("-q", "--min_methods"), action = "store", type = "integer",
-                default = 2,
-                help = "Minimum number of methods (default: 2)"),
-    make_option(c("-o", "--output_prefix"), action = "store", type = "character",
-                default = "bks.counts.",
-                help = "A prefix for output file names (default: bks.counts.intersect.csv, bks.counts.union.csv, bks.counts.union.intersected.csv)"),
-    # make_option(c("-f", "--format"), action = "store", type = "character",
-    #             default = "BED",
-    #             help = "The file format of output files {GTF,BED}"),
-    make_option(c("-s", "--stranded"), action = "store_true", default = F,
-                help = "Set this option if circRNA strand has to be considered"),
-    make_option(c("-c", "--circrnas_gtf"), action = "store", type = "character", default = NA,
-                help = "A circrnas.gtf file or a text file listing circrnas.gtf file paths to merge"),
-    make_option(c("-t", "--xprtypes"), action = "store", type = "character", default = "UN_IN_IU_MD",
-                help = paste("An underscore separated list of the strategy(ies) that will be used to combine and report",
-                             "the expression estimates. The options available are:",
-                             "UN = combine and count all the unique backsplice junction read fragments (BJRs) from any circRNA detection method;",
-                             "IN = count only the BJRs commonly identified by at least 'min_methods' methods",
-                             "IU = at least 1 BJRs is required to be commonly identified by at least 'min_methods' methods, then count all other BJRs",
-                             "MD = compute the median of the read count reported by each method that detected the circRNA",
-                             "ME = (not yet implemented) compute the mean of the read count reported by each method that detected the circRNA"))
-  )
+    ## process the Chimeric.out.junction entries filtered as circrna_finder does:
+    ## see https://github.com/orzechoj/circRNA_finder/blob/master/filterCirc.awk
+    ## Assume chimeric reads pre-processed by the cf_filterChimout.awk form CirComPara
 
-  parser <- OptionParser(usage = "%prog -i circular.reads.bed.gz.txt -q 2 -o bks.counts.",
-                         option_list = option_list,
-                         description = "Compute backsplices' read counts")
+    chimout.file <- arguments$chimreads
+    chimout.junc.bed <- fread(chimout.file, verbose = F,
+                              showProgress = F, header = F)
+    chimout.junc.bed$V1 <- as.character(chimout.junc.bed$V1)
 
-  arguments <- parse_args(parser, positional_arguments = F)
+    filterd.chimout.junc <-
+      merge(chimout.junc.bed,
+            orig.est[, .(V1, V2, V3, V6)],
+            by = c("V1", "V2", "V3", "V6"),
+            all.x = F,
+            all.y = T)[, .(V1, V2, V3, V4, V5, V6)]
+
+    splitted.filename <- strsplit(arguments$output, ".", fixed = T)[[1]]
+    if (tail(splitted.filename, 1) == "gz") {
+      tmp.outfile <- sub(".gz$", "", arguments$output)
+    }
+
+    fwrite(x = filterd.chimout.junc,
+           file = tmp.outfile,
+           sep = "\t",
+           col.names = F,
+           row.names = F)
+
+    if (tail(splitted.filename, 1) == "gz") {
+      gzip(tmp.outfile, destname = arguments$output)
+    }
+
+  }else{
+    warning(paste("No circRNAs in input file", orig.file))
+    file.create(arguments$output)
+  }
+
+
+}
+
+#' Obtain the backspliced reads for the circRNAs predicted by CIRI2
+#'
+#' @param input CIRI2 output file
+#' @param reads_bed Output filename of BED file with read IDs for each
+#' backsplice
+#' @param read_list Output filename of all read ID list
+get_bks_reads_ciri <- function(input = "ciri.out",
+                               reads_bed = "circular.reads.bed.gz",
+                               read_list = "bks.reads") {
+
+  input <- arguments$input
+  reads.bed <- arguments$reads_bed
+  read.list <- arguments$read_list
+
+  # input <- "/blackhole/enrico/circular/circompara_testing/circompara/test_circompara/analysis/samples/sample_A/processings/circRNAs/ciri_out/sample_A_ciri.out"
+
+  ## N.B: CIRI output is 1-based as GTFs.
+  ## We need to decrease start position to comply with BED format
+  ciri.out <- fread(input = input, select = c(2,3,4,11,12), showProgress = F)[, circRNA_start := circRNA_start - 1]
+
+  bks.reads <- data.table()
+  all.reads <- data.table()
+
+  if (nrow(ciri.out) > 0) {
+
+    ## method jaap_DT2 from
+    ## https://stackoverflow.com/questions/13773770/split-comma-separated-strings-in-a-column-into-separate-rows
+    bks.reads <-
+      ciri.out[, strsplit(as.character(junction_reads_ID), ",", fixed = T),
+               by = .(chr, circRNA_start, circRNA_end, strand,
+                      junction_reads_ID)][, .(chr, circRNA_start, circRNA_end,
+                                              read_id = V1, score = 0, strand)]
+
+    all.reads <-
+      bks.reads[, .N, by = read_id][order(-N), .(N, read_id)]
+
+  }else{
+    warning(paste("No circRNAs in input file", input))
+  }
+
+  ## write gzipped file for circular reads
+  reads_output.gz <- gzfile(reads.bed, "w")
+  write.table(bks.reads, file = reads_output.gz,
+              sep = "\t", col.names = F, row.names = F, quote = F)
+  close(reads_output.gz)
+
+  write.table(all.reads, file = read.list,
+              sep = "\t", col.names = F, row.names = F, quote = F)
+
+
+}
+
+#' Compute base pairs distance from CIGAR string
+#'
+#' @param cigar_str a CIGAR string
+cigar_dist <- function(cigar_str) {
+
+  cigar_split <- strsplit(cigar_str, "")[[1]]
+
+  C <- grep('[a-zA-Z]', cigar_split, value = T)
+
+  L <- gregexpr('-?[0-9]+', cigar_str)
+
+  g <- 0
+
+  for (i in 1:length(L[[1]])) {
+    if (C[i] != 'S' & C[i] != "I") {
+      g <-
+        g + as.integer(paste0(cigar_split[L[[1]][i]:(L[[1]][i] + attr(L[[1]],
+                                                                      "match.length")[i] - 1)],
+                              collapse = ""))
+    }
+  }
+  g
+}
+
+#' Obtain the backspliced reads for the circRNAs predicted by DCC
+#'
+#' @param chimreads Chimeric.out.junction BED transformed by
+#' chimout_junc_to_bed.py
+#' @param circrnas strandedCircRNACount as output by DCC
+#' @param output The circRNA read IDs for each circRNA in compressed BED
+#' @param tolerance Number of base pairs tolerated in realigning circRNAs
+#' @param stranded Set TRUE if stranded library
+#' @import data.table
+#' @import R.utils
+get_bks_reads_dcc <- function(chimreads,
+                              circrnas,
+                              output = "circular.reads.bed.gz",
+                              tolerance = 5,
+                              stranded = FALSE) {
+
+  orig.file <- arguments$circrnas
+
+  if (file.info(orig.file)$size > 0) {
+
+    orig.est <- fread(file = orig.file)[, .(V1 = as.character(Chr), V2 = Start, V3 = End,
+                                            orig = Chimeric.out.junction, V6 = Strand), ]
+
+    ## process the Chimeric.out.junction entries as DCC does:
+    ## see https://github.com/dieterich-lab/DCC/blob/master/DCC/findcircRNA.py
+    ## findcirc and cigarGenomicDist functions
+
+    ## read the file and keep only rows in which
+    ## 1. chromosome of the segments is the same
+    ## 2. strand of the segments is the same
+    chimout.file <- arguments$chimreads
+    chimout <- fread(chimout.file, verbose = F,
+                     showProgress = F, header = F)[V1 == V4 & V3 == V6 & V7 >= 0]
+    chimout$V1 <- as.character(chimout$V1)
+
+    chimout[, `:=`(V14.cigar.dist = sapply(V14, cigar_dist),
+                   V12.cigar.dist = sapply(V12, cigar_dist))]
+    ## check orientation of segment alignement:
+    ## if + strand then first segment comes after second segment, first->second if - strand
+    ## Mind the length of aligned segment, and tolerance (5 bases default)
+
+    tolerance <- arguments$tolerance
+
+    chimout.junc.bed <-
+      rbindlist(list(chimout[V3 == "+" & V11 + tolerance > V5 & (V13 - tolerance) + V14.cigar.dist <= V2],
+                     chimout[V3 == "-" & V13 + tolerance > V2 & (V11 - tolerance) + V12.cigar.dist <= V5]),
+                use.names = T)
+
+    ## swap start/end if + strand
+    chimout.junc.bed[V3 == "+", `:=`(tmp = V2, V2 = V5)][V3 == "+", V5 := tmp]
+
+    ## prepare BED coordinates:
+    ## Chimeric.out.junction coordinates are 1-based, but refer to the intron first position
+    ## add 1 to start (acceptor intron base) and remove 1 to end (donor intron base)
+    chimout.junc.bed <-
+      chimout.junc.bed[, .(V1, V2 = V2 + 1, V3 = V5 - 1, V4 = V10, V5 = V7, V6 = V3)]
+
+    strand <- arguments$stranded
+    # invert.strand <- function(s) {
+    #     if (s == "+") {
+    #         s <- "-"
+    #     }else{
+    #         s <- "+"
+    #     }
+    #     s
+    # }
+
+    if (strand) {
+      # chimout.junc.bed[, V6 := sapply(V6, invert.strand)]
+
+      filterd.chimout.junc <-
+        merge(chimout.junc.bed,
+              orig.est[, .(V1, V2, V3, V6)],
+              by = c("V1", "V2", "V3", "V6"),
+              all.x = F,
+              all.y = T)[, .(V1, V2, V3, V4, V5, V6)]
+    }else{
+      filterd.chimout.junc <-
+        merge(chimout.junc.bed,
+              orig.est[, .(V1, V2, V3)],
+              by = c("V1", "V2", "V3"),
+              all.x = F,
+              all.y = T)[, .(V1, V2, V3, V4, V5, V6)]
+    }
+
+    splitted.filename <- strsplit(arguments$output, ".", fixed = T)[[1]]
+    if (tail(splitted.filename, 1) == "gz") {
+      tmp.outfile <- sub(".gz$", "", arguments$output)
+    }
+
+    fwrite(x = filterd.chimout.junc,
+           file = tmp.outfile,
+           sep = "\t",
+           col.names = F,
+           row.names = F)
+
+    if (tail(splitted.filename, 1) == "gz") {
+      gzip(tmp.outfile, destname = arguments$output)
+    }
+  }else{
+    warning(paste("No circRNAs in input file", orig.file))
+    file.create(arguments$output)
+  }
+
+
+}
+
+#' Obtain the backspliced reads for the circRNAs predicted by Find_circ
+#'
+#' @param sites_reads Read file (in FASTA format) as the ouput by -R option of
+#' find_circ.py
+#' @param circ_candidates BED file with backsplices, as find_circ.py main output
+#' @param reads_bed Output filename of BED file with read IDs for each backsplice
+#' @param read_list Output filename of all read ID list
+#' @import data.table
+get_bks_reads_findcirc <- function(sites_reads = "sites.reads",
+                                   circ_candidates = "circ_candidates.bed",
+                                   reads_bed = "circular.reads.bed.gz",
+                                   read_list = "bks.reads") {
+
+  sites.reads.file <- arguments$sites_reads
+  circ.candidates.bed.file <- arguments$circ_candidates
+  reads.bed <- arguments$reads_bed
+  read.list <- arguments$read_list
+
+  # sites.reads.file <- "/blackhole/enrico/circular/circompara_testing/circompara/test_circompara/analysis/samples/sample_A/processings/circRNAs/find_circ_out/sites.reads"
+  # circ.candidates.bed.file <- "/blackhole/enrico/circular/circompara_testing/circompara/test_circompara/analysis/samples/sample_A/processings/circRNAs/find_circ_out/circ_candidates.bed"
+
+  sites.reads <-
+    fread(cmd = paste0('grep ">" ', sites.reads.file),
+          sep = " ",
+          header = F)[, .(V4 = sub(">", "", V1),
+                          read_id = sub("(.*)_([0-9]+)", "\\1", V2))]
+
+  circ.candidates.bed <- fread(input = circ.candidates.bed.file,
+                               header = F, select = c(1, 2, 3, 4, 5, 6))
+
+  bks.reads <- data.table()
+  all.reads <- data.table()
+
+  if (nrow(circ.candidates.bed) > 0 & nrow(sites.reads) > 0) {
+    bks.reads <- merge(sites.reads, circ.candidates.bed,
+                       by = "V4", all.x = F,
+                       all.y = T)[, .(V1, V2, V3, read_id, V5, V6)]
+
+    all.reads <-
+      bks.reads[, .N, by = read_id][order(-N), .(N, read_id)]
+  }else{
+    if (nrow(circ.candidates.bed) == 0) {
+      warning(paste("No circRNAs in input file", circ.candidates.bed.file))
+    }
+    if (nrow(sites.reads) == 0) {
+      warning(paste("No reads in input file", sites.reads.file))
+    }
+  }
+
+  ## write gzipped file for circular reads
+  reads_output.gz <- gzfile(reads.bed, "w")
+  write.table(bks.reads, file = reads_output.gz,
+              sep = "\t", col.names = F, row.names = F, quote = F)
+  close(reads_output.gz)
+
+  write.table(all.reads, file = read.list,
+              sep = "\t", col.names = F, row.names = F, quote = F)
+
+
+}
+
+
+#' Compute CirComPara2 circRNA expression
+#'
+#' @param input File with the list of circular.reads.bed.gz files to merge,
+#' each sample and method
+#' @param min_methods Minimum number of circRNA detection methods required to
+#' keep a circRNA
+#' @param output_prefix A prefix for output file names.
+#' Default outputs: bks.counts.intersect.csv, bks.counts.union.csv,
+#' bks.counts.union.intersected.csv
+#' @param stranded Set TRUE if circRNA strand has to be considered
+#' @param circrnas_gtf A circrnas.gtf file or a text file listing circrnas.gtf
+#' file paths to merge
+#' @param xprtypes An underscore separated list of the strategy(ies) that will
+#' be used to combine and report the expression estimates. The options available
+#' are:
+#' UN = combine and count all the unique backsplice junction read fragments
+#' (BJRs) from any circRNA detection method;
+#' IN = count only the BJRs commonly identified by at least 'min_methods' methods
+#' IU = at least 1 BJRs is required to be commonly identified by at least
+#' 'min_methods' methods, then count all other BJRs
+#' MD = compute the median of the read count reported by each method that
+#' detected the circRNA
+#' ME = (not yet implemented) compute the mean of the read count reported by
+#' each method that detected the circRNA
+#'
+#' @return
+#' @export
+#' @import data.table
+#'
+#' @examples
+get_circompara_counts <- function(input = "circular.reads.bed.gz.txt",
+                                  min_methods = 2,
+                                  output_prefix = "bks_counts.",
+                                  stranded = FALSE,
+                                  circrnas_gtf = NA,
+                                  xprtypes = "UN") {
 
   input <- arguments$input
   output_prefix <- arguments$output_prefix
   min_methods <- arguments$min_methods
-  # file.ext <- tolower(arguments$format)
   file.ext <- "csv"
   stranded <- arguments$stranded
   circrnas.gtf.files <- arguments$circrnas_gtf
@@ -1885,386 +2110,23 @@ get_circompara_counts <- function() {
 
 }
 
-get_circrnaFinder_bks_reads <- function() {
-
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
-
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
-  suppressPackageStartupMessages(library(R.utils))
-
-  option_list <- list(
-    make_option(c("-r", "--chimreads"), action="store", type="character",
-                help="Chimeric.out.junction BED filtered and formatted by cf_filterChimout.awk"),
-    make_option(c("-c", "--circrnas"), action="store", type="character",
-                help="circularRNA_known.txt as output by CIRCexplorer2 annotate, or back_spliced_junction.bed as output by CIRCexplorer2 parse"),
-    make_option(c("-o", "--output"), action="store", type="character",
-                help="The circRNA read IDs for each circRNA in compressed BED (circular.reads.bed.gz)")
-  )
-
-  parser <-
-    OptionParser(usage="%prog -r cf.filtered.Chimeric.out.junction -c filteredJunctions.bed -o circular.reads.bed.gz",
-                 option_list=option_list)
-  arguments <- parse_args(parser, positional_arguments=F)
-
-  orig.file <- arguments$circrnas
-
-  if (file.info(orig.file)$size > 0) {
-
-    orig.est <- fread(orig.file)[, .(orig = sum(V5)), by = .(V1, V2, V3, V6), ]
-    orig.est$V1 <- as.character(orig.est$V1)
-
-    ## process the Chimeric.out.junction entries filtered as circrna_finder does:
-    ## see https://github.com/orzechoj/circRNA_finder/blob/master/filterCirc.awk
-    ## Assume chimeric reads pre-processed by the cf_filterChimout.awk form CirComPara
-
-    chimout.file <- arguments$chimreads
-    chimout.junc.bed <- fread(chimout.file, verbose = F,
-                              showProgress = F, header = F)
-    chimout.junc.bed$V1 <- as.character(chimout.junc.bed$V1)
-
-    filterd.chimout.junc <-
-      merge(chimout.junc.bed,
-            orig.est[, .(V1, V2, V3, V6)],
-            by = c("V1", "V2", "V3", "V6"),
-            all.x = F,
-            all.y = T)[, .(V1, V2, V3, V4, V5, V6)]
-
-    splitted.filename <- strsplit(arguments$output, ".", fixed = T)[[1]]
-    if (tail(splitted.filename, 1) == "gz") {
-      tmp.outfile <- sub(".gz$", "", arguments$output)
-    }
-
-    fwrite(x = filterd.chimout.junc,
-           file = tmp.outfile,
-           sep = "\t",
-           col.names = F,
-           row.names = F)
-
-    if (tail(splitted.filename, 1) == "gz") {
-      gzip(tmp.outfile, destname = arguments$output)
-    }
-
-  }else{
-    warning(paste("No circRNAs in input file", orig.file))
-    file.create(arguments$output)
-  }
-
-
-}
-
-get_ciri_bks_reads <- function() {
-
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
-
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
-
-  option_list <- list(
-    make_option(c("-i", "--input"), action = "store", type = "character",
-                default = "ciri.out",
-                help = "CIRI2 output file (default: ciri.out)"),
-    make_option(c("-b", "--reads_bed"), action = "store", type = "character",
-                default = "circular.reads.bed.gz",
-                help = "Output filename of BED file with read IDs for each backsplice (default: circular.reads.bed.gz)"),
-    make_option(c("-l", "--read_list"), action = "store", type = "character",
-                default = "bks.reads",
-                help = "Output filename of all read ID list (default: bks.reads)")
-  )
-
-  parser <- OptionParser(usage = "%prog -i ciri.out -b circular.reads.bed.gz -l bks.reads",
-                         option_list = option_list,
-                         description = "")
-
-  arguments <- parse_args(parser, positional_arguments = F)
-
-  input <- arguments$input
-  reads.bed <- arguments$reads_bed
-  read.list <- arguments$read_list
-
-  # input <- "/blackhole/enrico/circular/circompara_testing/circompara/test_circompara/analysis/samples/sample_A/processings/circRNAs/ciri_out/sample_A_ciri.out"
-
-  ## N.B: CIRI output is 1-based as GTFs.
-  ## We need to decrease start position to comply with BED format
-  ciri.out <- fread(input = input, select = c(2,3,4,11,12), showProgress = F)[, circRNA_start := circRNA_start - 1]
-
-  bks.reads <- data.table()
-  all.reads <- data.table()
-
-  if (nrow(ciri.out) > 0) {
-
-    ## method jaap_DT2 from
-    ## https://stackoverflow.com/questions/13773770/split-comma-separated-strings-in-a-column-into-separate-rows
-    bks.reads <-
-      ciri.out[, strsplit(as.character(junction_reads_ID), ",", fixed = T),
-               by = .(chr, circRNA_start, circRNA_end, strand,
-                      junction_reads_ID)][, .(chr, circRNA_start, circRNA_end,
-                                              read_id = V1, score = 0, strand)]
-
-    all.reads <-
-      bks.reads[, .N, by = read_id][order(-N), .(N, read_id)]
-
-  }else{
-    warning(paste("No circRNAs in input file", input))
-  }
-
-  ## write gzipped file for circular reads
-  reads_output.gz <- gzfile(reads.bed, "w")
-  write.table(bks.reads, file = reads_output.gz,
-              sep = "\t", col.names = F, row.names = F, quote = F)
-  close(reads_output.gz)
-
-  write.table(all.reads, file = read.list,
-              sep = "\t", col.names = F, row.names = F, quote = F)
-
-
-}
-
-get_dcc_bks_reads <- function() {
-
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
-
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
-  suppressPackageStartupMessages(library(R.utils))
-
-  option_list <- list(
-    make_option(c("-r", "--chimreads"), action="store", type="character",
-                help="Chimeric.out.junction BED transformed by chimout_junc_to_bed.py"),
-    make_option(c("-c", "--circrnas"), action="store", type="character",
-                help="circularRNA_known.txt as output by CIRCexplorer2 annotate, or back_spliced_junction.bed as output by CIRCexplorer2 parse"),
-    make_option(c("-o", "--output"), action="store", type="character",
-                help="The circRNA read IDs for each circRNA in compressed BED (circular.reads.bed.gz)"),
-    make_option(c("-t", "--tolerance"), action="store", type="integer", default = 5,
-                help="Number of basepairs tolerated in realigning circRNAs from CIRCexplorer2 annotate"),
-    make_option(c("-s", "--stranded"), action="store_true", default = FALSE,
-                help="Set if stranded library")
-  )
-
-  parser <-
-    OptionParser(usage="%prog -r Chimeric.out.junction -c strandedCircRNACount -g 10 -o circular.reads.bed.gz",
-                 option_list=option_list)
-  arguments <- parse_args(parser, positional_arguments=F)
-
-  orig.file <- arguments$circrnas
-
-  if (file.info(orig.file)$size > 0) {
-
-    orig.est <- fread(file = orig.file)[, .(V1 = as.character(Chr), V2 = Start, V3 = End,
-                                            orig = Chimeric.out.junction, V6 = Strand), ]
-
-    ## process the Chimeric.out.junction entries as DCC does:
-    ## see https://github.com/dieterich-lab/DCC/blob/master/DCC/findcircRNA.py
-    ## findcirc and cigarGenomicDist functions
-
-    ## read the file and keep only rows in which
-    ## 1. chromosome of the segments is the same
-    ## 2. strand of the segments is the same
-    chimout.file <- arguments$chimreads
-    chimout <- fread(chimout.file, verbose = F,
-                     showProgress = F, header = F)[V1 == V4 & V3 == V6 & V7 >= 0]
-    chimout$V1 <- as.character(chimout$V1)
-
-    cigar_dist <- function(cigar.str) {
-      cigar.split <- strsplit(cigar.str, "")[[1]]
-      C <- grep('[a-zA-Z]', cigar.split, value = T)
-      L <- gregexpr('-?[0-9]+', cigar.str)
-      g <- 0
-      for(i in 1:length(L[[1]])) {
-        if (C[i] != 'S' & C[i] != "I") {
-          g <- g + as.integer(paste0(cigar.split[L[[1]][i]:(L[[1]][i]+attr(L[[1]],
-                                                                           "match.length")[i]-1)],
-                                     collapse = ""))
-        }
-      }
-      g
-    }
-
-    chimout[, `:=`(V14.cigar.dist = sapply(V14, cigar_dist),
-                   V12.cigar.dist = sapply(V12, cigar_dist))]
-    ## check orientation of segment alignement:
-    ## if + strand then first segment comes after second segment, first->second if - strand
-    ## Mind the length of aligned segment, and tolerance (5 bases default)
-
-    tolerance <- arguments$tolerance
-
-    chimout.junc.bed <-
-      rbindlist(list(chimout[V3 == "+" & V11 + tolerance > V5 & (V13 - tolerance) + V14.cigar.dist <= V2],
-                     chimout[V3 == "-" & V13 + tolerance > V2 & (V11 - tolerance) + V12.cigar.dist <= V5]),
-                use.names = T)
-
-    ## swap start/end if + strand
-    chimout.junc.bed[V3 == "+", `:=`(tmp = V2, V2 = V5)][V3 == "+", V5 := tmp]
-
-    ## prepare BED coordinates:
-    ## Chimeric.out.junction coordinates are 1-based, but refer to the intron first position
-    ## add 1 to start (acceptor intron base) and remove 1 to end (donor intron base)
-    chimout.junc.bed <-
-      chimout.junc.bed[, .(V1, V2 = V2 + 1, V3 = V5 - 1, V4 = V10, V5 = V7, V6 = V3)]
-
-    strand <- arguments$stranded
-    # invert.strand <- function(s) {
-    #     if (s == "+") {
-    #         s <- "-"
-    #     }else{
-    #         s <- "+"
-    #     }
-    #     s
-    # }
-
-    if (strand) {
-      # chimout.junc.bed[, V6 := sapply(V6, invert.strand)]
-
-      filterd.chimout.junc <-
-        merge(chimout.junc.bed,
-              orig.est[, .(V1, V2, V3, V6)],
-              by = c("V1", "V2", "V3", "V6"),
-              all.x = F,
-              all.y = T)[, .(V1, V2, V3, V4, V5, V6)]
-    }else{
-      filterd.chimout.junc <-
-        merge(chimout.junc.bed,
-              orig.est[, .(V1, V2, V3)],
-              by = c("V1", "V2", "V3"),
-              all.x = F,
-              all.y = T)[, .(V1, V2, V3, V4, V5, V6)]
-    }
-
-    splitted.filename <- strsplit(arguments$output, ".", fixed = T)[[1]]
-    if (tail(splitted.filename, 1) == "gz") {
-      tmp.outfile <- sub(".gz$", "", arguments$output)
-    }
-
-    fwrite(x = filterd.chimout.junc,
-           file = tmp.outfile,
-           sep = "\t",
-           col.names = F,
-           row.names = F)
-
-    if (tail(splitted.filename, 1) == "gz") {
-      gzip(tmp.outfile, destname = arguments$output)
-    }
-  }else{
-    warning(paste("No circRNAs in input file", orig.file))
-    file.create(arguments$output)
-  }
-
-
-}
-
-
-get_findcirc_bks_reads <- function() {
-
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
-
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
-
-  option_list <- list(
-    make_option(c("-s", "--sites_reads"), action = "store", type = "character",
-                default = "sites.reads",
-                help = "Read file (in FASTA format) as the ouput by -R option of find_circ.py (default: sites.reads)"),
-    make_option(c("-c", "--circ_candidates"), action = "store", type = "character",
-                default = "circ_candidates.bed",
-                help = "BED file with backsplices, as find_circ.py main output (default: circ_candidates.bed)"),
-    make_option(c("-r", "--reads_bed"), action = "store", type = "character",
-                default = "circular.reads.bed.gz",
-                help = "Output filename of BED file with read IDs for each backsplice (default: circular.reads.bed.gz)"),
-    make_option(c("-l", "--read_list"), action = "store", type = "character",
-                default = "bks.reads",
-                help = "Output filename of all read ID list (default: bks.reads)")
-  )
-
-  parser <- OptionParser(usage = "%prog -i ciri.out -b circular.reads.bed.gz -l bks.reads",
-                         option_list = option_list,
-                         description = "")
-
-  arguments <- parse_args(parser, positional_arguments = F)
-
-  sites.reads.file <- arguments$sites_reads
-  circ.candidates.bed.file <- arguments$circ_candidates
-  reads.bed <- arguments$reads_bed
-  read.list <- arguments$read_list
-
-  # sites.reads.file <- "/blackhole/enrico/circular/circompara_testing/circompara/test_circompara/analysis/samples/sample_A/processings/circRNAs/find_circ_out/sites.reads"
-  # circ.candidates.bed.file <- "/blackhole/enrico/circular/circompara_testing/circompara/test_circompara/analysis/samples/sample_A/processings/circRNAs/find_circ_out/circ_candidates.bed"
-
-  sites.reads <-
-    fread(cmd = paste0('grep ">" ', sites.reads.file),
-          sep = " ",
-          header = F)[, .(V4 = sub(">", "", V1),
-                          read_id = sub("(.*)_([0-9]+)", "\\1", V2))]
-
-  circ.candidates.bed <- fread(input = circ.candidates.bed.file,
-                               header = F, select = c(1, 2, 3, 4, 5, 6))
-
-  bks.reads <- data.table()
-  all.reads <- data.table()
-
-  if (nrow(circ.candidates.bed) > 0 & nrow(sites.reads) > 0) {
-    bks.reads <- merge(sites.reads, circ.candidates.bed,
-                       by = "V4", all.x = F,
-                       all.y = T)[, .(V1, V2, V3, read_id, V5, V6)]
-
-    all.reads <-
-      bks.reads[, .N, by = read_id][order(-N), .(N, read_id)]
-  }else{
-    if (nrow(circ.candidates.bed) == 0) {
-      warning(paste("No circRNAs in input file", circ.candidates.bed.file))
-    }
-    if (nrow(sites.reads) == 0) {
-      warning(paste("No reads in input file", sites.reads.file))
-    }
-  }
-
-  ## write gzipped file for circular reads
-  reads_output.gz <- gzfile(reads.bed, "w")
-  write.table(bks.reads, file = reads_output.gz,
-              sep = "\t", col.names = F, row.names = F, quote = F)
-  close(reads_output.gz)
-
-  write.table(all.reads, file = read.list,
-              sep = "\t", col.names = F, row.names = F, quote = F)
-
-
-}
-
-
-get_gene_expression_files <- function() {
-
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
-
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
-
-  option_list <- list(
-    make_option(c("-o", "--results.dir"), action = "store", type = "character",
-                default = "./",
-                help = "The output directory path"),
-    make_option(c("-t", "--transcripts.gtf.files"), action = "store", type = "character",
-                # default = "",
-                help = "The transcripts.gtf files as output by Stringtie"),
-    make_option(c("-r", "--gene_raw_counts_list"), action = "store", type = "character",
-                # default = "",
-                help = ""),
-    make_option(c("-g", "--gene.xpr.file"), action = "store", type = "character",
-                # default = "",
-                help = ""),
-    make_option(c("-x", "--trx_raw_counts_list"), action = "store", type = "character",
-                # default = "",
-                help = "")
-  )
-
-  parser <- OptionParser(usage = "%prog ",
-                         option_list = option_list,
-                         description = "")
-
-  arguments <- parse_args(parser, positional_arguments = F)
+#' Title
+#'
+#' @param transcripts.gtf.files The transcripts.gtf files as output by Stringtie
+#' @param gene_raw_counts_list
+#' @param gene.xpr.file
+#' @param trx_raw_counts_list
+#' @param results.dir The output directory path
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_gene_expression_files <- function(transcripts.gtf.files,
+                                      gene_raw_counts_list,
+                                      gene.xpr.file,
+                                      trx_raw_counts_list,
+                                      results.dir = "./") {
 
   results.dir             <- arguments$results.dir
   gene.xpr.file           <- readLines(arguments$gene.xpr.file)
@@ -2364,47 +2226,49 @@ get_gene_expression_files <- function() {
 
 }
 
-get_stringtie_rawcounts <- function() {
+#' Compute average length
+#'
+#' Parse a fastqc_data.txt file and computes the average read length
+#' TODO: improve by parsing "fastqc_data.txt" and get the mode instead of
+#' average read length
+#'
+#' @param fastqc_data.txt.file
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get.avg.read.len <- function(fastqc_data.txt.file) {
 
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
+  fastqc_data.txt <- readLines(fastqc_data.txt.file)
 
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
+  mean(as.numeric(strsplit(strsplit(grep("Sequence length",
+                                         x = fastqc_data.txt,
+                                         value = T),
+                                    "\t")[[1]][2], "-")[[1]]))
+}
 
-  option_list <- list(
-    make_option(c("-g", "--transcripts_gtf"), action = "store", type = "character",
-                help = "The _transcripts.gtf file output by StringTie"),
-    make_option(c("-f", "--fastqc_data"), action = "store", type = "character",
-                help = paste0("The fastqc_data.txt output by FastQC, or a comma ",
-                              "separated list of fastqc_data.txt files if paired-end reads. ",
-                              "If a number is given then it will be interpreted as the ",
-                              "(already computed) average read length"),
-                default = "100"),
-    make_option(c("-o", "--outprefix"), action = "store", type = "character",
-                help = "The prefix of output file names", default = "")
-
-  )
-
-  parser <- OptionParser(usage = "%prog -g sample_transcripts.gtf -f sample_R1/fastqc_data.txt,sample_R2/fastqc_data.txt",
-                         description = paste0("Computes the raw read counts for both transcripts and genes ",
-                                              "like the prepDE.py script from StringTie. ",
-                                              "It will output two files: the transcripts' and the genes' ",
-                                              "raw read counts."),
-                         option_list = option_list)
-  opt <- parse_args(object = parser, print_help_and_exit = T,
-                    positional_arguments = F,
-                    convert_hyphens_to_underscores = F)
-
-  ## This function parses a fastqc_data.txt file and computes the average read length
-  ## TODO: improve by parsing "fastqc_data.txt" and get the mode instead of average read length
-  get.avg.read.len <- function(fastqc_data.txt.file) {
-    fastqc_data.txt <- readLines(fastqc_data.txt.file)
-    mean(as.numeric(strsplit(strsplit(grep("Sequence length",
-                                           x = fastqc_data.txt,
-                                           value = T),
-                                      "\t")[[1]][2], "-")[[1]]))
-  }
+#' Title
+#'
+#' Computes the raw read counts for both transcripts and genes like the
+#' prepDE.py script from StringTie. It will output two files: the transcripts'
+#' and the genes' raw read counts.
+#'
+#' @param transcripts_gtf The _transcripts.gtf file output by StringTie
+#' @param fastqc_data The fastqc_data.txt output by FastQC, or a comma
+#' separated list of fastqc_data.txt files if paired-end reads. If a number is
+#' given then it will be interpreted as the (already computed) average read
+#' length
+#' @param outprefix The prefix of output file names
+#'
+#' @return
+#' @export
+#' @import data.table
+#'
+#' @examples
+get_stringtie_rawcounts <- function(transcripts_gtf,
+                                    fastqc_data = 100,
+                                    outprefix = "") {
 
   sample_transcripts.gtf.file <- opt$transcripts_gtf
   fastqc_data.txt.files <- opt$fastqc_data
@@ -2456,27 +2320,20 @@ get_stringtie_rawcounts <- function() {
 
 #' Title
 #'
+#' @param read_stats_collect.file Read statistic files generated by parsing
+#' FASTQC and (optionally) the linear aligner log files
+#' @param circrna.reads.stats.file
+#' @param results.dir The output directory path
+#' @param linear.mapper The linear read aligner applied
+#'
 #' @return
 #' @export
 #'
 #' @examples
-collect_read_stats <- function() {
-
-  #------------------------------------------------------------------------------#
-  # option_list <- list(
-  #   make_option(c("-o", "--results.dir"), action = "store", type = "character",
-  #               default = "./",
-  #               help = "The output directory path"),
-  #   make_option(c("-r", "--read_stats_collect.file"), action = "store", type = "character",
-  #               # default = NA,
-  #               help = "Read statistic files generated by parsing FASTQC and (optionally) the linear aligner log files."),
-  #   make_option(c("-c", "--circrna.reads.stats.file"), action = "store", type = "character",
-  #               default = NA,
-  #               help = ""),
-  #   make_option(c("-l", "--linear.mapper"), action = "store", type = "character",
-  #               default = "hisat2",
-  #               help = "The linear read aligner applied")
-  # )
+collect_read_stats <- function(read_stats_collect.file,
+                               circrna.reads.stats.file = NA,
+                               results.dir = "./",
+                               linear.mapper = "hisat2") {
 
   results.dir <- arguments$results.dir
   read_stats_collect.file <- arguments$read_stats_collect.file
@@ -2612,29 +2469,113 @@ collect_read_stats <- function() {
 }
 
 
-gene_annotation <- function() {
+#' Collapse a vector of strings into a string with elements separated by bar
+#' ("|") characters
+#'
+#' @param x a vector of characters
+#'
+#' @return
+#' @export
+#'
+#' @examples
+paste.bar <- function(x) {
 
-  #------------------------------------------------------------------------------#
-  #!/usr/bin/env Rscript
+  sapply(x, function(y) {
 
-  suppressPackageStartupMessages(library(optparse))
-  suppressPackageStartupMessages(library(data.table))
-  suppressPackageStartupMessages(library(bedr))
+    paste0(sort(y), collapse = "|")
+  },
+  simplify = T, USE.NAMES = F)
+}
 
-  option_list <- list(
-    make_option(c("-c", "--combined_circrnas"), action = "store", type = "character",
-                help="combined_circrnas.gtf.gz"),
-    make_option(c("-d", "--cluster_dist"), action = "store", type = "integer",
-                default = 5000L,
-                help="The maximum distance allowed to cluster intergenic circRNAs"),
-    make_option(c("-o", "--outdir"), action = "store", type = "character",
-                default = "./",
-                help="Output directory were circ_to_genes.tsv and gene_to_circ.tsv will be saved")
-  )
+#' Simplify gene region annotation character labels
+#'
+#' @param x the label to be simplified
+#'
+#' @return
+#' @export
+#'
+#' @examples
+simplify.gene.region <- function(x) {
 
-  parser <- OptionParser(usage="%prog -c circular_expression/circRNA_collection/combined_circrnas.gtf.gz -d 5000 -o ../circular_expression/circRNA_collection",
-                         option_list=option_list)
-  arguments <- parse_args(parser, positional_arguments=F)
+  label <- "unknown"
+
+  if (grepl("exon", x)) {
+    label <- "exon"
+  } else {
+    if (grepl("intron", x)) {
+      label <- "intron"
+    } else {
+      if (grepl("intergenic", x)) {
+        label <- "intergenic"
+      }
+    }
+  }
+  label
+}
+
+#' Simplify gene region annotation character vectors
+#'
+#' @param x the vector of labels
+#'
+#' @return
+#' @export
+#'
+#' @examples
+simplify.gene.region.list <- function(x) {
+  label <- "unknown"
+  if ("exon" %in% x) {
+    label <- "exon"
+  }else{
+    if ("intron" %in% x) {
+      label <- "intron"
+    }else{
+      if ("intergenic" %in% x) {
+        label <- "intergenic"
+      }
+    }
+  }
+  label
+}
+
+#' Cluster intergenic circrnas
+#'
+#' Assign a common label to neighboring intergenic circRNAs
+#'
+#' @param intergenic.circs.bed a data.table in BED format
+#' @param max.dist The maximum distance allowed between circRNAs of a same
+#' cluster
+#'
+#' @return a data.table
+#' @export
+#' @import data.table
+#'
+#' @examples
+get.circ.cluster <- function(intergenic.circs.bed,
+                             max.dist = 5000L) {
+  fw.strand.interg.circ <-
+    intergenic.circs.bed[, paste0(chr, ":", start, "-", end)]
+  circ.clusters <- data.table(cluster.region(fw.strand.interg.circ,
+                                             distance = max.dist,
+                                             check.chr = F, verbose = F))
+
+  circ.clusters[, .(circ_id = index, cluster = regionIndex)]
+}
+
+#' Title
+#'
+#' @param combined_circrnas
+#' @param cluster_dist The maximum distance allowed to cluster intergenic circRNAs
+#' @param outdir Output directory were circ_to_genes.tsv and gene_to_circ.tsv will be saved
+#'
+#' @return
+#' @export
+#' @import data.table
+#' @import bedr
+#'
+#' @examples
+gene_annotation <- function(combined_circrnas = "combined_circrnas.gtf.gz",
+                            cluster_dist = 5000L,
+                            outdir = "./") {
 
   gene.annotation.file <- arguments$combined_circrnas
   max.dist <- arguments$cluster_dist
@@ -2642,56 +2583,6 @@ gene_annotation <- function() {
   results.path <- arguments$outdir
 
   dir.create(path = results.path, recursive = T, showWarnings = F)
-
-  paste.bar <- function(x) {
-    sapply(x, function(y) {
-      paste0(sort(y), collapse = "|")},
-      simplify = T, USE.NAMES = F)
-  }
-
-  simplify.gene.region <- function(x) {
-    label <- "unknown"
-    if (grepl("exon", x)) {
-      label <- "exon"
-    }else{
-      if (grepl("intron", x)) {
-        label <- "intron"
-      }else{
-        if (grepl("intergenic", x)) {
-          label <- "intergenic"
-        }
-      }
-    }
-    label
-  }
-
-  simplify.gene.region.list <- function(x) {
-    label <- "unknown"
-    if ("exon" %in% x) {
-      label <- "exon"
-    }else{
-      if ("intron" %in% x) {
-        label <- "intron"
-      }else{
-        if ("intergenic" %in% x) {
-          label <- "intergenic"
-        }
-      }
-    }
-    label
-  }
-
-  ## function to cluster intergenic circrnas
-  ## intergenic.circs.bed is a data.table in BED format
-  get.circ.cluster <- function(intergenic.circs.bed, max.dist = 5000L) {
-    fw.strand.interg.circ <-
-      intergenic.circs.bed[, paste0(chr, ":", start, "-", end)]
-    circ.clusters <- data.table(cluster.region(fw.strand.interg.circ,
-                                               distance = max.dist,
-                                               check.chr = F, verbose = F))
-
-    circ.clusters[, .(circ_id = index, cluster = regionIndex)]
-  }
 
   ## get gene annotation
   if (ncol(fread(gene.annotation.file, showProgress = F, nrows = 1)) == 1) {
@@ -2896,4 +2787,204 @@ gene_annotation <- function() {
          quote = F, sep = "\t", row.names = F)
 
 
+}
+
+#' Guess the circRNA detection method from its output file.
+#'
+#' @param input_file the output of any circRNA detection method among
+#' CIRCexplorer2, circRNA_finder, CIRI2, DCC, Find_circ, and Segemehl
+#' @import data.table
+#' @return a string with the name of the guessed method (abbreviations are
+#' used). NA if the guess fails.
+guess_input_method <- function (input_file) {
+
+  ## guess by reading the first line
+  tab_fields <- fread(input_file, nrows = 1, header = F)[1]
+
+  Method <- NA
+
+  if (grepl("circular_RNA/", tab_fields[4])) {
+    # 18 fields no header "circular_RNA/[0-9]" in V4 ce2
+    Method <- "ce2"
+  }
+
+  if ("#junction_reads" %in% tab_fields) {
+    Method <- "ciri"
+  }
+
+  if ("Chr" %in% tab_fields) {
+    # 5 or more fields "Chr" first column dcc
+    Method <- "dcc"
+  }
+
+  if (grepl("_circ_", tab_fields[4])) {
+    # 18 fileds no header "CRR134518_circ_000012" in V4 findcirc
+    Method <- "fc"
+  }
+
+  if (length(tab_fields) == 6 &
+      grepl("[0-9]+s$", tab_fields[4])) {
+    Method <- "cf"
+  }
+
+  if ("map.qual" %in% tab_fields) {
+    #  7 fields map.qual in col names sg/tr
+    Method <- "sg"
+  }
+}
+
+#' Format CIRCexplorer2 output into simple "circ_id, read_count" table
+#'
+#' @param input
+#' @return a data.table with two columns: circ_id and read_count
+#' @import data.table
+format_ce2 <- function (input_file) {
+  fread(input_file,
+        header = F)[, .(circ_id = paste0(V1,
+                                         ":",
+                                         V2,
+                                         "-",
+                                         V3),
+                        read_count = V13)]
+  ## strand: V6
+}
+
+#' Format CIRI2 output into simple "circ_id, read_count" table
+#'
+#' @param input
+#' @return a data.table with two columns: circ_id and read_count
+#' @import data.table
+format_ciri <- function (input_file) {
+  fread(input_file,
+        header = T)[, .(circ_id = paste0(chr,
+                                         ":",
+                                         circRNA_start - 1, ## GTF -> BED
+                                         "-",
+                                         circRNA_end),
+                        read_count = `#junction_reads`)]
+  ## strand: strand
+}
+
+#' Format circRNA_finder output into simple "circ_id, read_count" table
+#'
+#' @param input
+#' @return a data.table with two columns: circ_id and read_count
+#' @import data.table
+format_cf <- function (input_file) {
+  fread(input_file,
+        header = F)[, .(circ_id = paste0(V1,
+                                         ":",
+                                         V2,
+                                         "-",
+                                         V3),
+                        read_count = V5)]
+  ## strand: V6
+}
+
+#' Format Find_circ output into simple "circ_id, read_count" table
+#'
+#' @param input
+#' @return a data.table with two columns: circ_id and read_count
+#' @import data.table
+format_fc <- function (input_file) {
+  fread(input_file,
+        header = F)[, .(circ_id = paste0(V1,
+                                         ":",
+                                         V2,
+                                         "-",
+                                         V3),
+                        read_count = V5)]
+  ## strand: V6
+}
+
+#' Format DCC output into simple "circ_id, read_count" table
+#'
+#' @param input
+#' @return a data.table with two columns: circ_id and read_count
+#' @import data.table
+format_dcc <- function (input_file) {
+  infile <-
+    fread(input_file,
+          header = T)
+
+  if (length(colnames(infile)) > 5) {
+    warn_msg <- paste0("DCC output contains > 1 samples. Only the first ",
+                       "sample column will be used.")
+    warn_msg <-
+      paste(warn_msg,
+            "Samples", colnames(infile)[6:length(colnames(infile))],
+            "will be discarded")
+    warning(warn_msg)
+  }
+
+  colnames(infile)[5] <- "V5"
+  infile[, .(circ_id = paste0(Chr,
+                              ":",
+                              Start,
+                              "-",
+                              End),
+             read_count = V5)]
+  ## strand: Strand
+}
+
+#' Format Segemehl output into simple "circ_id, read_count" table
+#'
+#' @param input
+#' @return a data.table with two columns: circ_id and read_count
+#' @import data.table
+format_sg <- function (input_file) {
+  fread(input_file,
+        header = T)[, .(circ_id = paste0(chr,
+                                         ":",
+                                         left + 1, ## fix intron coordinate
+                                         "-",
+                                         right),
+                        read_count = n)] ## n or V4
+  ## strand: strand
+}
+
+#' Reads the input file and convert to circ_id, read_count table format
+#'
+#' @param input_file
+#' @return a "circ_id, read_count" data.table with BED circRNA coordinates
+#' @import data.table
+read_circrna_input <- function (input_file) {
+
+  Method <- guess_input_method(input_file)
+
+  if (is.na(Method)){
+    warn_message <-
+      paste0("Unrecognised input file format: unable to infer source method. ",
+             "Skipping file ", input_file)
+    warning(warn_message)
+    formatted_dt <- data.table(Method = list(),
+                               circ_id = list(),
+                               read_count = list())
+  }
+
+  if (Method == "ce2") {
+    formatted_dt <- format_ce2(input_file)
+  }
+
+  if (Method == "cf") {
+    formatted_dt <- format_cf(input_file)
+  }
+
+  if (Method == "ciri") {
+    formatted_dt <- format_ciri(input_file)
+  }
+
+  if (Method == "dcc") {
+    formatted_dt <- format_dcc(input_file)
+  }
+
+  if (Method == "fc") {
+    formatted_dt <- format_fc(input_file)
+  }
+
+  if (Method == "sg") {
+    formatted_dt <- format_sg(input_file)
+  }
+
+  formatted_dt
 }
