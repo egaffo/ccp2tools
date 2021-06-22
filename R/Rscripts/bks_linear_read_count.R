@@ -42,7 +42,7 @@ option_list <- list(
                             "instead of single reads. The default is to count ",
                             "the fragments as to comply with the CirComPara2 ",
                             "default counting approach")),
-  make_option(c("n", "--tidy_sample_names"),
+  make_option(c("-n", "--tidy_sample_names"),
               action = "store_true",
               type = "logical",
               default = TRUE,
