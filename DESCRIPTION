@@ -1,0 +1,14 @@
+Package: ccp2tools
+Type: Package
+Title: Utility functions for CirComPara2
+Version: 0.1.0
+Author: Enrico Gaffo
+Maintainer: Enrico Gaffo <enrico.gaffo@gmail.com>
+Description: Utility functions for CirComPara2 (https://github.com/egaffo/circompara2).
+    This package collects all R code used in CirComPara2.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Imports:
+    car, boot, stats
+RoxygenNote: 7.1.1
