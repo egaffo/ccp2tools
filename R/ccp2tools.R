@@ -2988,3 +2988,55 @@ read_circrna_input <- function (input_file) {
 
   formatted_dt
 }
+
+
+#' Combine outputs of different circRNA detection tools
+#'
+#' @param file_names a names list of the file names to be combined
+#' @param filter if TRUE performs a filtering on the circRNAs included in the
+#' results: only circRNAs with >= _min\_reads_ and detected by >= _min\_methods_
+#' will be included
+#' @param min_reads the minimum read count a circRNA must have to be included in
+#' the results when the _filter_ option is enabled
+#' @param min_methods the minimum number of methods a circRNA must be detected
+#' by to be included in the results when the _filter_ option is enabled
+#'
+#' @return
+#' @export
+#' @import data.table
+#'
+#' @examples
+combine_circrna_methods <- function(file_names,
+                                    filter = TRUE,
+                                    min_reads = 2,
+                                    min_methods = 2) {
+
+  circrna_input_list <- lapply(X = file_names, FUN = read_circrna_input)
+
+  merged_methods_l <-
+    rbindlist(circrna_input_list,
+              use.names = T,
+              idcol = "sample_id")
+
+  if (filter) {
+    ## filter out circRNAs according to the parameters
+    ## N.B.: if a circRNA read count gets above the threshold in at least one
+    ## sample, then also read counts lower than the threshold in other samples
+    ## are maintained
+    reliable_circ_ids <-
+      merged_methods_l[read_count >= min_reads
+      ][, .N, by = .(Method, circ_id)
+      ][N >= min_methods, unique(circ_id)]
+
+    merged_methods_l <- merged_methods_l[circ_id %in% reliable_circ_ids]
+  }
+
+  merged_methods_w <-
+    dcast(data = merged_methods_l,
+          formula = Method + circ_id ~ sample_id,
+          fun.aggregate = sum,
+          fill = 0)
+
+  list(long_tab = merged_methods_l,
+       wide_tab = merged_methods_w)
+}
