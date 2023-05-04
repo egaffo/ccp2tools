@@ -3040,3 +3040,56 @@ combine_circrna_methods <- function(file_names,
   list(long_tab = merged_methods_l,
        wide_tab = merged_methods_w)
 }
+
+makeResultsReport <- function(prjDirs, sampleTable) {
+  # prjDirs <- "/sharedfs01/enrico/CLL/analysis/CCP2"
+  # sampleTable <- rio::import("/sharedfs01/enrico/CLL/data/DATI CLINICI a Bortoluzzi_Gaffo.xlsx", sheet = 3)
+  # rownames(sampleTable) <- sampleTable$`Codice campione`
+  #-------- Linear gene expression --------#
+  ## get ctab files
+  t_data_files <- dir(path = prjDirs, pattern = "t_data.ctab", full.names = T, recursive = T)
+  names(t_data_files) <-
+    gsub(file.path(prjDirs, "samples", "([^/]+)", ".*"),
+         "\\1",
+         t_data_files)
+
+  # sampleTable <- sampleTable[gsub("([^_]+)_.*", "\\1", names(t_data_files)), ]
+  # rownames(sampleTable) <- names(t_data_files)
+
+  ## get gene raw counts
+  tx2gene <- data.table::fread(t_data_files[1], data.table = F)[, c("t_name", "gene_name")]
+  txi <- tximport::tximport(files = t_data_files, type = "stringtie", tx2gene = tx2gene)
+
+  # dds <- DESeq2::DESeqDataSetFromTximport(txi, sampleTable[colnames(txi$counts), ], ~ CARIOTIPO)
+  # keep <- rowMeans(txi$abundance) >= 1
+  # # keep <- rowSums(DESeq2::counts(dds) >= 10) >= 3
+  # dds <- dds[keep,]
+  # dds <- dds[grep("rRNA", rownames(dds), invert = T), ]
+  # vsd <- DESeq2::vst(dds, blind = F)
+  #
+  # # sampleDists <- dist(t(SummarizedExperiment::assay(vsd)))
+  # # sampleDistMatrix <- as.matrix(sampleDists)
+  # # rownames(sampleDistMatrix) <- paste(vsd$CARIOTIPO, vsd$CENTER, sep="-")
+  # # colnames(sampleDistMatrix) <- NULL
+  # # colors <- colorRampPalette( rev(RColorBrewer::brewer.pal(9, "Blues")) )(255)
+  # # pheatmap::pheatmap(sampleDistMatrix,
+  # #          clustering_distance_rows = sampleDists,
+  # #          clustering_distance_cols = sampleDists,
+  # #          col = colors)
+  #
+  # pcaData <- DESeq2::plotPCA(vsd, intgroup = c("CARIOTIPO"), returnData = TRUE, n = 500)
+  # percentVar <- round(100 * attr(pcaData, "percentVar"))
+  # ggplot2::ggplot(pcaData, ggplot2::aes(PC1, PC2,
+  #                                       color = CARIOTIPO,
+  #                                       fill = CARIOTIPO,
+  #                                       shape = gsub("([^ ]) .*", "\\1", CARIOTIPO))) +
+  #   ggplot2::geom_point(size = 3) + #, color = "black"
+  #   ggplot2::xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  #   ggplot2::ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  #   ggplot2::coord_fixed() +
+  #   ggthemes::scale_color_gdocs() +
+  #   ggthemes::scale_fill_gdocs() +
+  #   ggplot2::scale_shape_manual("CARIOTIPO", values = 21:26)
+
+
+}
