@@ -9,6 +9,13 @@ Description: Utility functions for CirComPara2 (https://github.com/egaffo/circom
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
+biocViews: RNASeq
 Imports:
-    car, boot, stats
-RoxygenNote: 7.1.1
+    car, 
+    boot, 
+    stats, 
+    data.table, 
+    R.utils, 
+    bedr,
+    Rsubread
+RoxygenNote: 7.1.2
