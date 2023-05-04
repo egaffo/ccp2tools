@@ -1,0 +1,5 @@
+library(lintr)
+lint("R/fit_quasibinomial.R")
+lint("R/remove_batch_effect_quasibin.R")
+lint("R/ccp2tools.R")
+lint("R/Rscripts/bks_linear_read_count.R")
