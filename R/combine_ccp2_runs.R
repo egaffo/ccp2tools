@@ -2,9 +2,9 @@
 #'
 #' @param files a character indicating the path of the parent directory of the
 #' CirComPara2 runs to be combined.
-#' _files_ child directories will be scan to search for the CirComPara2 results
+#' \code{files} child directories will be scan to search for the CirComPara2 results
 #' to merge (i.e. the circRNA backsplice read counts and linear read counts).
-#' _files_ might also be a file listing either (1) directories,
+#' \code{files} might also be a file listing either (1) directories,
 #' (2) bks.counts.union.csv files, or (3) a mix of directories and files.
 #' @param min_methods the minimum number of circRNA-detection methods a circRNA
 #' must be identified by. 2 by default.
@@ -23,9 +23,9 @@
 #' default.
 #'
 #' @return a list of two elements: (1) the matrix of the merged samples'
-#' backspliced read counts ( _ccp\_counts\_dt_ ), and (2) the matrix of the
-#' merged samples' backsplice linear read counts ( _lin\_bks\_counts_ ). The
-#' latter is _NA_ when _merge\_lin = FALSE_.
+#' backspliced read counts (\code{ccp_counts_dt}), and (2) the matrix of the
+#' merged samples' backsplice linear read counts (\code{lin_bks_counts}). The
+#' latter is \code{NA} when \code{merge_lin = FALSE}.
 #' @import data.table
 #' @import Rsubread
 #' @export
@@ -39,6 +39,10 @@ combine_ccp2_runs <-
            recycle_existing_lincount = F,
            isPairedEnd = T,
            cpus = 1) {
+
+    # files <- "/sharedfs01/circrna/zicirc/analysis/GSE159225/batch"
+    # require(data.table)
+    # require(Rsubread)
 
     if(dir.exists(files)) {
       ## if files is a directory, search all subdirectories for the CCP2 results
