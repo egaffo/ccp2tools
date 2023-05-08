@@ -100,7 +100,9 @@ get_ccp_counts <- function(files) {
     fixed_strand <- 
       merge(ccp_counts[circ_id %in% ambig_strnd_candidates,
                        .(read.count = sum(read.count),
-                         n_methods = sum(n_methods),
+                         n_methods = length(unique(unlist(strsplit(paste0(circ_methods, 
+                                                                          collapse = "|"), 
+                                                                   "\\|")))),
                          circ_methods = paste0(circ_methods, collapse = "|"),
                          strand_pattern = paste0(strand, "_", read.count, "_",
                                                  n_methods, collapse = "|")),
@@ -108,12 +110,14 @@ get_ccp_counts <- function(files) {
             uns_frags_count, 
             by = c("sample_id", 
                    "circ_id"))[, .(strand = guess_strand(strand_pattern),
-                                   strand_pattern), 
+                                   strand_pattern, 
+                                   circ_methods = paste0(sort(unique(unlist(strsplit(circ_methods, 
+                                                                                     "\\|")))),
+                                                         collapse = "|")), 
                                by = .(read.count = frag.count,
                                       sample_id, 
                                       circ_id, 
-                                      n_methods, 
-                                      circ_methods)]
+                                      n_methods)]
     
     message("Resolved ambiguous strand of ", 
             length(ambig_strnd_candidates) - 
