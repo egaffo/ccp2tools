@@ -1,3 +1,28 @@
+#' Try to resolve strandedness ambiguities of the detected circRNAs
+#'
+#' @param strand_pattern a character in the form of 
+#' "strand_reads_nMethods|strand_reads_nMethods". E.g. "+_30_6|-_26_1"
+#'
+#' @return
+#' @export
+#'
+#' @examples
+guess_strand <- function(strand_pattern) {
+  pp <- strsplit(strand_pattern, "_|\\|")[[1]]
+  ## if there was no ambiguous pattern, just return the strand
+  if(length(pp) < 6) return(pp[1])
+  ## return the strand with the largest read count
+  if(as.integer(pp[2]) > as.integer(pp[5])) return(pp[1])
+  if(as.integer(pp[2]) < as.integer(pp[5])) return(pp[4])
+  ## if the number of reads is the same, then return the strand with the 
+  ## largest consensus among methods, "." if the ambiguity was not resolved
+  if(as.integer(pp[2]) == as.integer(pp[5])) {
+    if(as.integer(pp[3]) > as.integer(pp[6])) return(pp[1])
+    if(as.integer(pp[3]) < as.integer(pp[6])) return(pp[4])
+    if(as.integer(pp[3]) == as.integer(pp[6])) return(".")
+  }
+}
+
 #' Combine the results of multiple CirComPara2 analyses
 #'
 #' This function will combine multiple CirComPara2 analyses into single output
@@ -47,16 +72,18 @@ combine_ccp2_runs <-
            merge_lin = FALSE,
            recycle_existing_lincount = FALSE,
            is_paired_end = TRUE,
+           is_stranded = TRUE,
            cpus = 1) {
-
-    # files <- "/sharedfs01/circrna/zicirc/analysis/GSE159225/batch"
+    
+    # files <- "/sharedfs01/enrico/ccp2_nf/tmp/PMF/"
+    # files<- "/sharedfs01/enrico/CLL/analysis/CCP2/"
     # require(data.table)
     # require(Rsubread)
-
+    
     if (dir.exists(files)) {
       #' if files is a directory, search all sub directories for the CCP2
       #' results to merge
-
+      
       ccp_count_files <-
         dir(path = files,
             pattern = "bks.counts.union.csv",
@@ -67,33 +94,102 @@ combine_ccp2_runs <-
       ## 1) the CCP2 project directories to merge,
       ## 2) the 'bks.counts.union.csv' files to merge, or
       ## 3) a mix of directories and files
-
+      
       files <- readLines(files)
-
+      
       ccp_count_files <-
         sapply(files, function(f) {
           ifelse(file.exists(f), ## if not a file, assume it is a directory
                  f,
-                 dir(path = files_dir,
+                 dir(path = f,
                      pattern = "bks.counts.union.csv",
                      full.names = TRUE,
                      recursive = TRUE))
         })
     }
-
+    
     message("Combining BJR counts from ", length(ccp_count_files),
-            "projects...")
+            " projects...")
     ccp_counts <- data.table::rbindlist(sapply(ccp_count_files,
                                                data.table::fread,
                                                simplify = FALSE),
                                         use.names = TRUE)
-
+    
     ccp_counts[, circ_id := paste0(chr, ":", start, "-", end)]
-    message("Detected ", nrow(ccp_counts), " circRNAs")
-
+    message("Detected ", length(unique(ccp_counts$circ_id)), " circRNAs")
+    
+    if (is_stranded) {
+      #' check strandedness inconsistencies and fix 
+      #' check if any circ_id has two strands
+      ambig_strnd_candidates <- 
+        ccp_counts[, .N, 
+                   by = .(sample_id, circ_id, 
+                          strand)][, .N, 
+                                   by = .(sample_id, 
+                                          circ_id)][N > 1, unique(circ_id)]
+      
+      if (length(ambig_strnd_candidates) > 1) {
+        message("Found ",
+                length(ambig_strnd_candidates),
+                " circRNAs with ambiguous strand assignment.")
+        
+        message("Trying to fix ambiguous strand circRNAs...")
+        circ_reads <- 
+          data.table::rbindlist(sapply(file.path(dirname(ccp_count_files),
+                                                 "bks.counts.collected_reads.csv"),
+                                       data.table::fread,
+                                       simplify = F))[, circ_id := paste0(chr, ":", start, "-", end),
+                                                      by = .(chr, start,
+                                                             end)][circ_id %in%
+                                                                     ambig_strnd_candidates]
+        
+        ## count read fragments irrespective of the alignment strand
+        uns_frags_count <- 
+          circ_reads[, .N, by = .(sample_id, circ_id, 
+                                  read_id)][, .(frag.count = .N), 
+                                            by = .(sample_id, circ_id)]
+        
+        ## compare the actual number of fragments with the sum of the number of 
+        ## reads from different strands.
+        fixed_strand <- 
+          merge(ccp_counts[circ_id %in% ambig_strnd_candidates,
+                           .(read.count = sum(read.count),
+                             n_methods = sum(n_methods),
+                             circ_methods = paste0(circ_methods, collapse = "|"),
+                             strand_pattern = paste0(strand, "_", read.count, "_",
+                                                     n_methods, collapse = "|")),
+                           by = .(sample_id, circ_id)],
+                uns_frags_count, 
+                by = c("sample_id", 
+                       "circ_id"))[, .(strand = guess_strand(strand_pattern),
+                                       strand_pattern), 
+                                   by = .(read.count = frag.count,
+                                          sample_id, 
+                                          circ_id, 
+                                          n_methods, 
+                                          circ_methods)]
+        
+        message("Resoved ambiguous strand of ", 
+                length(ambig_strnd_candidates) - 
+                  length(fixed_strand[strand == ".", unique(circ_id)]),
+                " circRNAs.")
+        
+        fixed_strand[, c("chr", "start", "end") := tstrsplit(circ_id, ":|-"), 
+                     by = circ_id]
+        
+        ccp_counts <- 
+          rbindlist(list(ccp_counts[!circ_id %in% ambig_strnd_candidates],
+                         fixed_strand), 
+                    use.names = T, fill = T)
+      }
+      ccp_counts[, circ_id := paste0(circ_id, ":", strand), 
+                 by = .(circ_id, strand)]
+    }
+    
+    ## Select relible circRNAs
     message("Removing circRNAs detected with <= ",
             min_reads,
-            " BJRs by <= ",
+            " BJRs and by <= ",
             min_methods,
             " circRNA detection methods, in all samples...")
     reliable_circ_ids <-
@@ -101,21 +197,21 @@ combine_ccp2_runs <-
                    read.count >= min_reads,
                  unique(circ_id)]
     message(length(reliable_circ_ids), " reliable circRNAs were kept.")
-
+    
     ccp_counts_dt <-
       dcast(data = ccp_counts[circ_id %in% reliable_circ_ids],
             formula = circ_id ~ sample_id,
             value.var = "read.count",
             fill = 0)
-
+    
     lin_bks_counts <- NA
-
+    
     if (merge_lin) {
       ## merge also the linear counts
       ## N.B. this might require to compute the linear counts for circRNAs not
       ## detected in the sample (but detected in other samples)
       message("Merging the linearly spliced read counts...")
-
+      
       if (recycle_existing_lincount) {
         ## recycle the existing lincount files and compute the lincounts
         ## for the circRNAs expressed only in other samples
@@ -124,13 +220,13 @@ combine_ccp2_runs <-
                 "not yet implemented. Skipping.")
       }else {
         ## count the linearly spliced reads on the backsplice ends
-
+        
         ## retrieve HISAT2 BAM files from the CCP2 project directories
         ccp_count_file_postfix <- file.path("circular_expression",
                                             "circrna_analyze",
                                             "counts",
                                             "bks.counts.union.csv")
-
+        
         ccp2_runs_basedirs <- unique(sub(ccp_count_file_postfix,
                                          "",
                                          ccp_count_files))
@@ -138,7 +234,7 @@ combine_ccp2_runs <-
                 "junctions from ",
                 length(ccp2_runs_basedirs),
                 " projects...")
-
+        
         bam_files <-
           unlist(sapply(ccp2_runs_basedirs,
                         FUN = function(f) {
@@ -148,13 +244,13 @@ combine_ccp2_runs <-
                               recursive = TRUE) },
                         simplify = TRUE,
                         USE.NAMES = FALSE))
-
+        
         names(bam_files) <-
           sapply(bam_files,
                  function(f)sub( "_hisat2.bam", "", basename(f) ),
                  USE.NAMES = FALSE)
         message("Parsing ", length(bam_files), " linear alignment files...")
-
+        
         ## make SAF data.frame of start/end of circRNAs
         ## TODO: strandedness
         sn_unique_circ <-
@@ -163,19 +259,19 @@ combine_ccp2_runs <-
                id.vars = c("circ_id", "V1"),
                variable.name = "featureType",
                value.name = "Start")
-
+        
         sn_unique_circ[featureType == "V2", featureType := "Start"]
         sn_unique_circ[featureType == "V3", featureType := "Stop"]
         sn_unique_circ[, Start := as.integer(Start) + 1][, `:=`(End = Start,
                                                                 Strand = "+")]
-
+        
         circ_ids_saf <- as.data.frame(sn_unique_circ[, .(GeneID = circ_id,
                                                          Chr = V1,
                                                          Start,
                                                          End,
                                                          Strand,
                                                          featureType)])
-
+        
         ## count spliced reads on circRNA junctions gene expression
         ## using the featureCounts function of the Rsubread package
         fc_linear_backsplices <-
@@ -193,7 +289,7 @@ combine_ccp2_runs <-
                         strandSpecific = 0,
                         isPairedEnd = is_paired_end,
                         nthreads = cpus)
-
+        
         lin_bks_counts <-
           data.table(fc_linear_backsplices$counts,
                      keep.rownames = "circ_id")
@@ -201,7 +297,7 @@ combine_ccp2_runs <-
                                         colnames(lin_bks_counts))
       }
     }
-
+    
     list(circ_read_count_mt = ccp_counts_dt,
          lin_read_count_mt = lin_bks_counts)
   }
