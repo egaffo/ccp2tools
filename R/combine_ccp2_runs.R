@@ -8,6 +8,7 @@
 #'
 #' @examples
 guess_strand <- function(strand_pattern) {
+  
   pp <- strsplit(strand_pattern, "_|\\|")[[1]]
   ## if there was no ambiguous pattern, just return the strand
   if(length(pp) < 6) return(pp[1])
@@ -21,6 +22,115 @@ guess_strand <- function(strand_pattern) {
     if(as.integer(pp[3]) < as.integer(pp[6])) return(pp[4])
     if(as.integer(pp[3]) == as.integer(pp[6])) return(".")
   }
+}
+
+get_ccp_counts <- function(files) {
+  
+  if (dir.exists(files)) {
+    #' if files is a directory, search all sub directories for the CCP2
+    #' results to merge
+    
+    ccp_count_files <-
+      dir(path = files,
+          pattern = "bks.counts.union.csv",
+          full.names = TRUE,
+          recursive = TRUE)
+  }else {
+    ## 'files' might be one file listing either
+    ## 1) the CCP2 project directories to merge,
+    ## 2) the 'bks.counts.union.csv' files to merge, or
+    ## 3) a mix of directories and files
+    
+    files <- readLines(files)
+    
+    ccp_count_files <-
+      sapply(files, function(f) {
+        ifelse(file.exists(f), ## if not a file, assume it is a directory
+               f,
+               dir(path = f,
+                   pattern = "bks.counts.union.csv",
+                   full.names = TRUE,
+                   recursive = TRUE))
+      })
+  }
+  
+  message("Combining BJR counts from ", length(ccp_count_files),
+          " projects...")
+  ccp_counts <- data.table::rbindlist(sapply(ccp_count_files,
+                                             data.table::fread,
+                                             simplify = FALSE),
+                                      use.names = TRUE)
+  
+  ccp_counts[, circ_id := paste0(chr, ":", start, "-", end)]
+  
+  #' check strandedness inconsistencies and fix 
+  #' check if any circ_id has two strands
+  ambig_strnd_candidates <- 
+    ccp_counts[, .N, 
+               by = .(sample_id, circ_id, 
+                      strand)][, .N, 
+                               by = .(sample_id, 
+                                      circ_id)][N > 1, unique(circ_id)]
+  
+  if (length(ambig_strnd_candidates) > 1) {
+    message("Found ",
+            length(ambig_strnd_candidates),
+            " circRNAs with ambiguous strand assignment.")
+    
+    message("Trying to fix ambiguous strand circRNAs...")
+    circ_reads <- 
+      data.table::rbindlist(sapply(file.path(dirname(ccp_count_files),
+                                             "bks.counts.collected_reads.csv"),
+                                   data.table::fread,
+                                   simplify = F))[, circ_id := paste0(chr, ":",
+                                                                      start,
+                                                                      "-", end),
+                                                  by = .(chr, start,
+                                                         end)][circ_id %in%
+                                                                 ambig_strnd_candidates]
+    
+    ## count read fragments irrespective of the alignment strand
+    uns_frags_count <- 
+      circ_reads[, .N, by = .(sample_id, circ_id, 
+                              read_id)][, .(frag.count = .N), 
+                                        by = .(sample_id, circ_id)]
+    
+    ## compare the actual number of fragments with the sum of the number of 
+    ## reads from different strands.
+    fixed_strand <- 
+      merge(ccp_counts[circ_id %in% ambig_strnd_candidates,
+                       .(read.count = sum(read.count),
+                         n_methods = sum(n_methods),
+                         circ_methods = paste0(circ_methods, collapse = "|"),
+                         strand_pattern = paste0(strand, "_", read.count, "_",
+                                                 n_methods, collapse = "|")),
+                       by = .(sample_id, circ_id)],
+            uns_frags_count, 
+            by = c("sample_id", 
+                   "circ_id"))[, .(strand = guess_strand(strand_pattern),
+                                   strand_pattern), 
+                               by = .(read.count = frag.count,
+                                      sample_id, 
+                                      circ_id, 
+                                      n_methods, 
+                                      circ_methods)]
+    
+    message("Resolved ambiguous strand of ", 
+            length(ambig_strnd_candidates) - 
+              length(fixed_strand[strand == ".", unique(circ_id)]),
+            " circRNAs.")
+    
+    fixed_strand[, c("chr", "start", "end") := data.table::tstrsplit(circ_id, ":|-"), 
+                 by = circ_id]
+    
+    ccp_counts <- 
+      data.table::rbindlist(list(ccp_counts[!circ_id %in% ambig_strnd_candidates],
+                                 fixed_strand), 
+                            use.names = T, fill = T)
+  }
+  message("Detected ", length(unique(ccp_counts$circ_id)), " circRNAs")
+  
+  ccp_counts
 }
 
 #' Combine the results of multiple CirComPara2 analyses
@@ -80,108 +190,10 @@ combine_ccp2_runs <-
     # require(data.table)
     # require(Rsubread)
     
-    if (dir.exists(files)) {
-      #' if files is a directory, search all sub directories for the CCP2
-      #' results to merge
-      
-      ccp_count_files <-
-        dir(path = files,
-            pattern = "bks.counts.union.csv",
-            full.names = TRUE,
-            recursive = TRUE)
-    }else {
-      ## 'files' might be one file listing either
-      ## 1) the CCP2 project directories to merge,
-      ## 2) the 'bks.counts.union.csv' files to merge, or
-      ## 3) a mix of directories and files
-      
-      files <- readLines(files)
-      
-      ccp_count_files <-
-        sapply(files, function(f) {
-          ifelse(file.exists(f), ## if not a file, assume it is a directory
-                 f,
-                 dir(path = f,
-                     pattern = "bks.counts.union.csv",
-                     full.names = TRUE,
-                     recursive = TRUE))
-        })
-    }
-    
-    message("Combining BJR counts from ", length(ccp_count_files),
-            " projects...")
-    ccp_counts <- data.table::rbindlist(sapply(ccp_count_files,
-                                               data.table::fread,
-                                               simplify = FALSE),
-                                        use.names = TRUE)
-    
-    ccp_counts[, circ_id := paste0(chr, ":", start, "-", end)]
-    message("Detected ", length(unique(ccp_counts$circ_id)), " circRNAs")
+    ccp_counts <- get_ccp_counts(files)
     
     if (is_stranded) {
-      #' check strandedness inconsistencies and fix 
-      #' check if any circ_id has two strands
-      ambig_strnd_candidates <- 
-        ccp_counts[, .N, 
-                   by = .(sample_id, circ_id, 
-                          strand)][, .N, 
-                                   by = .(sample_id, 
-                                          circ_id)][N > 1, unique(circ_id)]
-      
-      if (length(ambig_strnd_candidates) > 1) {
-        message("Found ",
-                length(ambig_strnd_candidates),
-                " circRNAs with ambiguous strand assignment.")
-        
-        message("Trying to fix ambiguous strand circRNAs...")
-        circ_reads <- 
-          data.table::rbindlist(sapply(file.path(dirname(ccp_count_files),
-                                                 "bks.counts.collected_reads.csv"),
-                                       data.table::fread,
-                                       simplify = F))[, circ_id := paste0(chr, ":", start, "-", end),
-                                                      by = .(chr, start,
-                                                             end)][circ_id %in%
-                                                                     ambig_strnd_candidates]
-        
-        ## count read fragments irrespective of the alignment strand
-        uns_frags_count <- 
-          circ_reads[, .N, by = .(sample_id, circ_id, 
-                                  read_id)][, .(frag.count = .N), 
-                                            by = .(sample_id, circ_id)]
-        
-        ## compare the actual number of fragments with the sum of the number of 
-        ## reads from different strands.
-        fixed_strand <- 
-          merge(ccp_counts[circ_id %in% ambig_strnd_candidates,
-                           .(read.count = sum(read.count),
-                             n_methods = sum(n_methods),
-                             circ_methods = paste0(circ_methods, collapse = "|"),
-                             strand_pattern = paste0(strand, "_", read.count, "_",
-                                                     n_methods, collapse = "|")),
-                           by = .(sample_id, circ_id)],
-                uns_frags_count, 
-                by = c("sample_id", 
-                       "circ_id"))[, .(strand = guess_strand(strand_pattern),
-                                       strand_pattern), 
-                                   by = .(read.count = frag.count,
-                                          sample_id, 
-                                          circ_id, 
-                                          n_methods, 
-                                          circ_methods)]
-        
-        message("Resoved ambiguous strand of ", 
-                length(ambig_strnd_candidates) - 
-                  length(fixed_strand[strand == ".", unique(circ_id)]),
-                " circRNAs.")
-        
-        fixed_strand[, c("chr", "start", "end") := tstrsplit(circ_id, ":|-"), 
-                     by = circ_id]
-        
-        ccp_counts <- 
-          rbindlist(list(ccp_counts[!circ_id %in% ambig_strnd_candidates],
-                         fixed_strand), 
-                    use.names = T, fill = T)
-      }
+      ## add strand to the circRNA identifier
       ccp_counts[, circ_id := paste0(circ_id, ":", strand), 
                  by = .(circ_id, strand)]
     }
@@ -199,10 +211,10 @@ combine_ccp2_runs <-
     message(length(reliable_circ_ids), " reliable circRNAs were kept.")
     
     ccp_counts_dt <-
-      dcast(data = ccp_counts[circ_id %in% reliable_circ_ids],
-            formula = circ_id ~ sample_id,
-            value.var = "read.count",
-            fill = 0)
+      data.table::dcast(data = ccp_counts[circ_id %in% reliable_circ_ids],
+                        formula = circ_id ~ sample_id,
+                        value.var = "read.count",
+                        fill = 0)
     
     lin_bks_counts <- NA
     
