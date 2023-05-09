@@ -2,6 +2,9 @@
 #'
 #' @param strand_pattern a character in the form of 
 #' "strand_reads_nMethods|strand_reads_nMethods". E.g. "+_30_6|-_26_1"
+#' @param circ_methods (optional) the methods corresponding to the strand 
+#' pattern, separated by an "@" character. It helps to solve some ambiguities.
+#' E.g: "CIRCexplorer2_bwa|CIRCexplorer2_star|CIRCexplorer2_tophat@dcc"
 #'
 #' @return "+", "-", or "." when the ambiguity cannot be resolved
 #' @export
@@ -11,9 +14,7 @@
 #' guess_strand("+_30_6|-_30_1") # "+"
 #' guess_strand("+_30_1|-_30_1") # "."
 #' guess_strand("+_30_6") # "+"
-guess_strand <- function(strand_pattern) {
-  
-  ## TODO: also check methods to resolve ambiguities
+guess_strand <- function(strand_pattern, circ_methods = NULL) {
   
   pp <- strsplit(strand_pattern, "_|\\|")[[1]]
   ## if there was no ambiguous pattern, just return the strand
@@ -26,7 +27,20 @@ guess_strand <- function(strand_pattern) {
   if(as.integer(pp[2]) == as.integer(pp[5])) {
     if(as.integer(pp[3]) > as.integer(pp[6])) return(pp[1])
     if(as.integer(pp[3]) < as.integer(pp[6])) return(pp[4])
-    if(as.integer(pp[3]) == as.integer(pp[6])) return(".")
+    if(as.integer(pp[3]) == as.integer(pp[6])) {
+      if(!is.null(circ_methods)) {
+        ## check methods to resolve ambiguities
+        mm <- strsplit(circ_methods, "@")[[1]]
+        ## do not select the strand given by dcc as it showed many discordant 
+        ## strand in previous tests 
+        ss <- c(pp[1], pp[4])[which(!grepl("dcc", mm))][1]
+        ifelse(is.na(ss),
+               return("."),
+               return(ss))
+      }else{
+        return(".")
+      }
+    }
   }
 }
 
@@ -39,6 +53,8 @@ guess_strand <- function(strand_pattern) {
 #'
 #' @param files the path of a CirComPara2 run, or a text file listing the paths 
 #' of multiple CirComPara2 run to merge.
+#' @param is_list_file set TRUE if "files" is a text file listing the projects 
+#' to merge
 #'
 #' @return a data.table with the following columns: 
 #' "sample_id"
@@ -55,35 +71,26 @@ guess_strand <- function(strand_pattern) {
 #' @export
 #'
 #' @examples
-get_ccp_counts <- function(files) {
+get_ccp_counts <- function(files, is_list_file = FALSE) {
   
-  if (dir.exists(files)) {
-    #' if files is a directory, search all sub directories for the CCP2
-    #' results to merge
-    
-    ccp_count_files <-
-      dir(path = files,
-          pattern = "bks.counts.union.csv",
-          full.names = TRUE,
-          recursive = TRUE)
-  }else {
+  if (is_list_file) {
     ## 'files' might be one file listing either
     ## 1) the CCP2 project directories to merge,
     ## 2) the 'bks.counts.union.csv' files to merge, or
     ## 3) a mix of directories and files
     
     files <- readLines(files)
-    
-    ccp_count_files <-
-      sapply(files, function(f) {
-        ifelse(file.exists(f), ## if not a file, assume it is a directory
-               f,
-               dir(path = f,
-                   pattern = "bks.counts.union.csv",
-                   full.names = TRUE,
-                   recursive = TRUE))
-      })
   }
+  
+  ccp_count_files <-
+    sapply(files, function(f) {
+      ifelse(R.utils::isFile(f), ## if not a file, assume it is a directory
+             f,
+             dir(path = f,
+                 pattern = "bks.counts.union.csv",
+                 full.names = TRUE,
+                 recursive = TRUE))
+    })
   
   message("Combining BJR counts from ", length(ccp_count_files),
           " projects...")
@@ -134,13 +141,14 @@ get_ccp_counts <- function(files) {
                          n_methods = length(unique(unlist(strsplit(paste0(circ_methods, 
                                                                           collapse = "|"), 
                                                                    "\\|")))),
-                         circ_methods = paste0(circ_methods, collapse = "|"),
+                         circ_methods = paste0(circ_methods, collapse = "@"),
                          strand_pattern = paste0(strand, "_", read.count, "_",
                                                  n_methods, collapse = "|")),
                        by = .(sample_id, circ_id)],
             uns_frags_count, 
             by = c("sample_id", 
-                   "circ_id"))[, .(strand = guess_strand(strand_pattern),
+                   "circ_id"))[, .(strand = guess_strand(strand_pattern, 
+                                                         circ_methods),
                                    strand_pattern, 
                                    circ_methods = paste0(sort(unique(unlist(strsplit(circ_methods, 
                                                                                      "\\|")))),
@@ -221,7 +229,9 @@ combine_ccp2_runs <-
            cpus = 1) {
     
     # files <- "/sharedfs01/enrico/ccp2_nf/tmp/PMF/"
-    # files<- "/sharedfs01/enrico/CLL/analysis/CCP2/"
+    # files <- "/sharedfs01/enrico/CLL/analysis/CCP2/"
+    # files <- c("/sharedfs01/enrico/CLL/analysis/CCP2/",
+    #            "/sharedfs01/enrico/CLL/analysis/PRJNA432966/")
     # require(data.table)
     # require(Rsubread)
     
