@@ -3,11 +3,17 @@
 #' @param strand_pattern a character in the form of 
 #' "strand_reads_nMethods|strand_reads_nMethods". E.g. "+_30_6|-_26_1"
 #'
-#' @return
+#' @return "+", "-", or "." when the ambiguity cannot be resolved
 #' @export
 #'
-#' @examples
+#' @examples guess_strand("+_30_6|-_26_1") # "+"
+#' guess_strand("+_30_6|-_36_1") # "-"
+#' guess_strand("+_30_6|-_30_1") # "+"
+#' guess_strand("+_30_1|-_30_1") # "."
+#' guess_strand("+_30_6") # "+"
 guess_strand <- function(strand_pattern) {
+  
+  ## TODO: also check methods to resolve ambiguities
   
   pp <- strsplit(strand_pattern, "_|\\|")[[1]]
   ## if there was no ambiguous pattern, just return the strand
@@ -24,6 +30,31 @@ guess_strand <- function(strand_pattern) {
   }
 }
 
+#' Get circRNA BJR count expression matrix
+#' 
+#' Compute the backsplice junction read (BJR) counts according to the 
+#' CirComPara2's framework.  
+#' This function collect the results of one or more CirComPara2 runs and merges 
+#' the results.
+#'
+#' @param files the path of a CirComPara2 run, or a text file listing the paths 
+#' of multiple CirComPara2 run to merge.
+#'
+#' @return a data.table with the following columns: 
+#' "sample_id"
+#' "chr", "start", "end", "strand"
+#' "read.count": the BJR count
+#' "n_methods": the number of the circRNA-detection tools that commonly 
+#' identified the circRNA
+#' "circ_methods": the names of the circRNA-detection tools that commonly 
+#' identified the circRNA in a bar-separated list alphanumerically sorted. 
+#' E.g: "CIRCexplorer2_bwa|ciri_out|dcc"
+#' "circ_id": the circRNA identifier composed as chr:start-end[:strand]
+#' "strand_pattern": a string representing the number of reads and methods 
+#' according to their strand(s). See also \link[ccp2tools]{guess_strand}.
+#' @export
+#'
+#' @examples
 get_ccp_counts <- function(files) {
   
   if (dir.exists(files)) {
@@ -220,6 +251,7 @@ combine_ccp2_runs <-
                         value.var = "read.count",
                         fill = 0)
     
+    ## linearly spliced reads on the BJ 
     lin_bks_counts <- NA
     
     if (merge_lin) {
