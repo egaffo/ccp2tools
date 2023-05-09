@@ -71,16 +71,7 @@ guess_strand <- function(strand_pattern, circ_methods = NULL) {
 #' @export
 #'
 #' @examples
-get_ccp_counts <- function(files, is_list_file = FALSE) {
-  
-  if (is_list_file) {
-    ## 'files' might be one file listing either
-    ## 1) the CCP2 project directories to merge,
-    ## 2) the 'bks.counts.union.csv' files to merge, or
-    ## 3) a mix of directories and files
-    
-    files <- readLines(files)
-  }
+get_ccp_counts <- function(files) {
   
   ccp_count_files <-
     sapply(files, function(f) {
@@ -101,8 +92,8 @@ get_ccp_counts <- function(files, is_list_file = FALSE) {
   
   ccp_counts[, circ_id := paste0(chr, ":", start, "-", end)]
   
-  #' check strandedness inconsistencies and fix 
-  #' check if any circ_id has two strands
+  ## check strandedness inconsistencies and fix 
+  ## check if any circ_id has two strands
   ambig_strnd_candidates <- 
     ccp_counts[, .N, 
                by = .(sample_id, circ_id, 
@@ -176,6 +167,107 @@ get_ccp_counts <- function(files, is_list_file = FALSE) {
   ccp_counts
 }
 
+#' Count the reads linearly spliced on the backsplice junctions
+#'
+#' @param files the CirComPara2 project directories
+#' @param circ_ids the list of backsplices in the form of chr:start-end[:strand] 
+#' @param is_stranded should the strand be considered? (default: TRUE)
+#' @param is_paired_end were the reads mapped as paired-end? (default: TRUE)
+#' @param cpus number of CPUs for parallel execution (default: 1)
+#'
+#' @return a matrix with circRNAs as rows and samples as columns and counts in 
+#' the cells
+#' 
+#' @importFrom Rsubread featureCounts
+#' @import data.table
+#' @export
+#'
+#' @examples
+compute_lin_bks_counts <- function(files, circ_ids, 
+                                   is_stranded = TRUE, 
+                                   is_paired_end = TRUE, 
+                                   cpus = 1) {
+  
+  circ_ids <- data.table::data.table(circ_id = circ_ids)
+  
+  ## retrieve HISAT2 BAM files from the CCP2 project directories
+  message("Counting the reads linearly spliced on the backsplice ",
+          "junctions from ",
+          length(files),
+          " projects...")
+  
+  bam_files <-
+    unlist(sapply(files,
+                  function(f) {
+                    dir(path = f,
+                        pattern = "_hisat2.bam$",
+                        full.names = TRUE,
+                        recursive = TRUE) },
+                  simplify = TRUE,
+                  USE.NAMES = FALSE))
+  
+  names(bam_files) <-
+    sapply(bam_files,
+           function(f)sub( "_hisat2.bam", "", basename(f) ),
+           USE.NAMES = FALSE)
+  message("Parsing ", length(bam_files), " linear alignment files...")
+  
+  ## make SAF data.frame of start/end of circRNAs
+  id_fileds <- c("Chr", "Start", "Stop")
+  if (is_stranded) id_fileds <- c(id_fileds, "Strand")
+  
+  circ_ids[, c(id_fileds) := data.table::tstrsplit(circ_id,
+                                                   ":|-",
+                                                   type.convert = FALSE),
+           by = circ_id]
+  if (is_stranded) circ_ids[Strand == "", Strand := "-"]
+  
+  sn_unique_circ <-
+    data.table::melt(circ_ids,
+                     id.vars = c("circ_id", "Chr", "Strand"),
+                     variable.name = "featureType",
+                     value.name = "Start")
+  
+  ## convert from 0-based into 1-based
+  sn_unique_circ[, Start := as.integer(Start) + 1][, `:=`(End = Start)]
+  if (!is_stranded) sn_unique_circ[, Strand := "+"]
+  
+  ## compose SAF input
+  circ_ids_saf <- as.data.frame(sn_unique_circ[, .(GeneID = circ_id,
+                                                   Chr,
+                                                   Start,
+                                                   End,
+                                                   Strand,
+                                                   featureType)])
+  
+  ## count spliced reads on circRNA junctions gene expression
+  ## using the featureCounts function of the Rsubread package
+  fc_linear_backsplices <-
+    Rsubread::featureCounts(files = bam_files,
+                            annot.ext = circ_ids_saf,
+                            splitOnly = TRUE,
+                            nonSplitOnly = FALSE,
+                            useMetaFeatures = TRUE,
+                            allowMultiOverlap = TRUE,
+                            countMultiMappingReads = TRUE,
+                            countReadPairs = TRUE,
+                            countChimericFragments = FALSE,
+                            largestOverlap = TRUE,
+                            primaryOnly = TRUE,
+                            strandSpecific = ifelse(is_stranded, 1, 0),
+                            isPairedEnd = is_paired_end,
+                            nthreads = cpus)
+  
+  lin_bks_counts <-
+    data.table::data.table(fc_linear_backsplices$counts,
+                           keep.rownames = "circ_id")
+  colnames(lin_bks_counts) <- sub("_hisat2.bam", "",
+                                  colnames(lin_bks_counts))
+  
+  lin_bks_counts
+}
+
+
 #' Combine the results of multiple CirComPara2 analyses
 #'
 #' This function will combine multiple CirComPara2 analyses into single output
@@ -235,6 +327,16 @@ combine_ccp2_runs <-
     # require(data.table)
     # require(Rsubread)
     
+    is_list_file <- FALSE ## TODO: determine automatically
+    if (is_list_file) {
+      ## 'files' might be one file listing either
+      ## 1) the CCP2 project directories to merge,
+      ## 2) the 'bks.counts.union.csv' files to merge, or
+      ## 3) a mix of directories and files
+      
+      files <- readLines(files)
+    }
+    
     ccp_counts <- get_ccp_counts(files)
     
     if (is_stranded) {
@@ -255,13 +357,14 @@ combine_ccp2_runs <-
                  unique(circ_id)]
     message(length(reliable_circ_ids), " reliable circRNAs were kept.")
     
+    ## make the reliable circRNA expression matrix
     ccp_counts_dt <-
       data.table::dcast(data = ccp_counts[circ_id %in% reliable_circ_ids],
                         formula = circ_id ~ sample_id,
                         value.var = "read.count",
                         fill = 0)
     
-    ## linearly spliced reads on the BJ 
+    ## -------- linearly spliced reads on the BJ -------- ##
     lin_bks_counts <- NA
     
     if (merge_lin) {
@@ -277,85 +380,17 @@ combine_ccp2_runs <-
         message("Use of pre-computed linearly spliced read counts ",
                 "not yet implemented. Skipping.")
       }else {
+        
         ## count the linearly spliced reads on the backsplice ends
+        lin_bks_counts <- compute_lin_bks_counts(files,
+                                                 ccp_counts_dt$circ_id, 
+                                                 is_stranded,
+                                                 is_paired_end,
+                                                 cpus)
         
-        ## retrieve HISAT2 BAM files from the CCP2 project directories
-        ccp_count_file_postfix <- file.path("circular_expression",
-                                            "circrna_analyze",
-                                            "counts",
-                                            "bks.counts.union.csv")
-        
-        ccp2_runs_basedirs <- unique(sub(ccp_count_file_postfix,
-                                         "",
-                                         ccp_count_files))
-        message("Counting the reads linearly spliced on the backsplice ",
-                "junctions from ",
-                length(ccp2_runs_basedirs),
-                " projects...")
-        
-        bam_files <-
-          unlist(sapply(ccp2_runs_basedirs,
-                        FUN = function(f) {
-                          dir(path = f,
-                              pattern = "_hisat2.bam$",
-                              full.names = TRUE,
-                              recursive = TRUE) },
-                        simplify = TRUE,
-                        USE.NAMES = FALSE))
-        
-        names(bam_files) <-
-          sapply(bam_files,
-                 function(f)sub( "_hisat2.bam", "", basename(f) ),
-                 USE.NAMES = FALSE)
-        message("Parsing ", length(bam_files), " linear alignment files...")
-        
-        ## make SAF data.frame of start/end of circRNAs
-        ## TODO: strandedness
-        sn_unique_circ <-
-          melt(ccp_counts_dt[, tstrsplit(circ_id, ":|-", type.convert = FALSE),
-                             by = circ_id],
-               id.vars = c("circ_id", "V1"),
-               variable.name = "featureType",
-               value.name = "Start")
-        
-        sn_unique_circ[featureType == "V2", featureType := "Start"]
-        sn_unique_circ[featureType == "V3", featureType := "Stop"]
-        sn_unique_circ[, Start := as.integer(Start) + 1][, `:=`(End = Start,
-                                                                Strand = "+")]
-        
-        circ_ids_saf <- as.data.frame(sn_unique_circ[, .(GeneID = circ_id,
-                                                         Chr = V1,
-                                                         Start,
-                                                         End,
-                                                         Strand,
-                                                         featureType)])
-        
-        ## count spliced reads on circRNA junctions gene expression
-        ## using the featureCounts function of the Rsubread package
-        fc_linear_backsplices <-
-          featureCounts(files = bam_files,
-                        annot.ext = circ_ids_saf,
-                        splitOnly = TRUE,
-                        nonSplitOnly = FALSE,
-                        useMetaFeatures = TRUE,
-                        allowMultiOverlap = TRUE,
-                        countMultiMappingReads = TRUE,
-                        countReadPairs = TRUE,
-                        countChimericFragments = FALSE,
-                        largestOverlap = TRUE,
-                        primaryOnly = TRUE,
-                        strandSpecific = 0,
-                        isPairedEnd = is_paired_end,
-                        nthreads = cpus)
-        
-        lin_bks_counts <-
-          data.table(fc_linear_backsplices$counts,
-                     keep.rownames = "circ_id")
-        colnames(lin_bks_counts) <- sub("_hisat2.bam", "",
-                                        colnames(lin_bks_counts))
       }
+      
+      list(circ_read_count_mt = ccp_counts_dt,
+           lin_read_count_mt = lin_bks_counts)
     }
-    
-    list(circ_read_count_mt = ccp_counts_dt,
-         lin_read_count_mt = lin_bks_counts)
   }
