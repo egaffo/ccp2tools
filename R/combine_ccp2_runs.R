@@ -71,7 +71,7 @@ guess_strand <- function(strand_pattern, circ_methods = NULL) {
 #' @export
 #'
 #' @examples
-get_ccp_counts <- function(files) {
+merge_ccp_counts <- function(files) {
   
   ccp_count_files <-
     sapply(files, function(f) {
@@ -267,6 +267,14 @@ compute_lin_bks_counts <- function(files, circ_ids,
   lin_bks_counts
 }
 
+#' Merge the counts of the reads linearly spliced on the backsplice junctions
+#'
+#' @param files the paths of CirComPara2 runs to merge.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 merge_lin_bks_counts <- function(files) {
   
   ## find the ccp_bks_linexp.csv files
@@ -308,10 +316,9 @@ merge_lin_bks_counts <- function(files) {
 #' @export
 #'
 #' @examples 
-#' \notrun {
+#' \dontrun{
 #' get_circrna_host_genes("10:1000676-1000868:+", 
-#'                        "Homo_sapiens.GRCh38.108.gtf")
-#' } 
+#'                        "Homo_sapiens.GRCh38.108.gtf")} 
 get_circrna_host_genes <- function(circ_ids, gtf_file) {
   
   circ_dt <- 
@@ -434,7 +441,7 @@ combine_ccp2_runs <-
     }
     
     ## -------- merge backsplice junction read counts -------- ##
-    ccp_counts <- get_ccp_counts(files)
+    ccp_counts <- merge_ccp_counts(files)
     
     if (is_stranded) {
       ## add strand to the circRNA identifier
