@@ -17,5 +17,8 @@ Imports:
     data.table, 
     R.utils, 
     bedr,
-    Rsubread
+    Rsubread,
+    tximport,
+    GenomicRanges,
+    rtracklayer
 RoxygenNote: 7.2.3
