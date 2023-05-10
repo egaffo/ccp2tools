@@ -297,6 +297,61 @@ merge_lin_bks_counts <- function(files) {
                     fill = NA)
 }
 
+#' Find circRNA host-gene(s)
+#'
+#' @param circ_ids a list of circRNA identifiers in the form of 
+#' chr:start-end[:strand]
+#' @param gtf_file an Ensemble GTF gene annotation file
+#'
+#' @return a data.table of the genes overlapping each circRNA, one row for each 
+#' overlap.
+#' @export
+#'
+#' @examples 
+#' \notrun {
+#' get_circrna_host_genes("10:1000676-1000868:+", 
+#'                        "Homo_sapiens.GRCh38.108.gtf")
+#' } 
+get_circrna_host_genes <- function(circ_ids, gtf_file) {
+  
+  circ_dt <- 
+    data.table::data.table(circ_id = circ_ids)[, data.table::tstrsplit(circ_id, 
+                                                                       ":|-"), 
+                                               by = circ_id][]
+  cols <- c("circ_id", "chr", "start", "end")
+  
+  stranded <- FALSE
+  ## is stranded?
+  if (ncol(circ_dt) > 4) {
+    ## fix "-" strand
+    circ_dt[V4 == "", V4 := "-"]
+    cols <- c(cols, "strand")
+    stranded <- TRUE
+  }
+  colnames(circ_dt) <- cols
+  
+  circ_gr <- 
+    GenomicRanges::makeGRangesFromDataFrame(df = circ_dt, 
+                                            keep.extra.columns = TRUE,
+                                            ignore.strand = !stranded, 
+                                            starts.in.df.are.0based = TRUE)
+  
+  message("Importing gene annotations from ", gtf_file)
+  gtf_gr <- rtracklayer::import(gtf_file)
+  
+  message("Finding host-gene for ", length(circ_ids), " circRNAs...")
+  hits <- GenomicRanges::findOverlaps(query = circ_gr, 
+                                      subject = gtf_gr[gtf_gr$type == "gene"],
+                                      type = "any",
+                                      select = "all",
+                                      ignore.strand = !stranded)
+  
+  hits_df <- as.data.frame(hits)
+  hits_df$circ_id <- circ_gr$circ_id[hits_df$queryHits]
+  
+  data.table::data.table(cbind(hits_df, data.frame(gtf_gr)[hits_df$subjectHits, ]))
+}
+
 #' Combine the results of multiple CirComPara2 analyses
 #'
 #' This function will combine multiple CirComPara2 analyses into single output
@@ -329,6 +384,9 @@ merge_lin_bks_counts <- function(files) {
 #' TRUE by default.
 #' @param cpus integer indicating the number of parallel threads to use. 1 by
 #' default.
+#' @param gtf_file the path of the Ensemble GTF gene annotation file; 
+#' \code{auto} will use the GTF path from the vars.py file; 
+#' \code{NULL} will skip this step.
 #'
 #' @return a list of two elements: (1) the matrix of the merged samples'
 #' backspliced read counts (\code{ccp_counts_dt}), and (2) the matrix of the
@@ -347,9 +405,18 @@ combine_ccp2_runs <-
            recycle_existing_lincount = FALSE,
            is_paired_end = TRUE,
            is_stranded = TRUE,
-           cpus = 1) {
+           cpus = 1,
+           gtf_file = "auto") {
     
     # files <- "/sharedfs01/enrico/ccp2_nf/tmp/PMF/"
+    # files <- c("/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_4142",
+    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_4465",
+    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_5939",
+    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_7073",
+    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_7274",
+    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_7475",
+    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_7710",
+    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_7839")
     # files <- "/sharedfs01/enrico/CLL/analysis/CCP2/"
     # files <- c("/sharedfs01/enrico/CLL/analysis/CCP2/",
     #            "/sharedfs01/enrico/CLL/analysis/PRJNA432966/")
@@ -394,8 +461,23 @@ combine_ccp2_runs <-
                         value.var = "read.count",
                         fill = 0)
     
-    ## -------- (optional?) compute circRNA host-gene annotation -------- ##
-    ## TODO
+    ## -------- compute circRNA host-gene annotation -------- ##
+    circ_gene_anno <- NULL
+    
+    if (!is.null(gtf_file)) {
+      if (gtf_file == "auto") {
+        gtf_file <- 
+          gsub(" |\"|\'", "", 
+               strsplit(grep("ANNOTATION", 
+                             readLines(file.path(files[1], 
+                                                 "vars.py")), 
+                             value = TRUE), "=")[[1]][2])
+        message("Using gene annotation from file ", gtf_file)
+        # file.exists(gtf_file)
+      }
+      # gtf_file <- "/sharedfs01/annotation/Homo_sapiens.GRCh38.108.gtf"
+      circ_gene_anno <- get_circrna_host_genes(reliable_circ_ids, gtf_file)
+    }
     
     ## -------- merge the linearly spliced reads on the BJ -------- ##
     lin_bks_counts <- NA
@@ -452,6 +534,7 @@ combine_ccp2_runs <-
       }else {
         
         ## count the linearly spliced reads on the backsplice ends
+        ## this might take some time to run...
         lin_bks_counts <- compute_lin_bks_counts(files,
                                                  ccp_counts_dt$circ_id, 
                                                  is_stranded,
@@ -460,6 +543,7 @@ combine_ccp2_runs <-
       }
       
       list(circ_read_count_mt = ccp_counts_dt,
+           circ_gene_anno = circ_gene_anno,
            lin_read_count_mt = lin_bks_counts)
     }
   }
