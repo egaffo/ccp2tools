@@ -313,6 +313,9 @@ merge_lin_bks_counts <- function(files) {
 #'
 #' @return a data.table of the genes overlapping each circRNA, one row for each 
 #' overlap.
+#' 
+#' @import GenomicRanges 
+#' @importFrom rtracklayer import
 #' @export
 #'
 #' @examples 
@@ -359,6 +362,64 @@ get_circrna_host_genes <- function(circ_ids, gtf_file) {
   data.table::data.table(cbind(hits_df, data.frame(gtf_gr)[hits_df$subjectHits, ]))
 }
 
+#' Merge multiple CirComPara2 runs to get linear transcript/gene expression
+#' 
+#' @param prj_paths 
+#' @param ... additional parameters used in tximport::tximport()
+#'
+#' @return a named list of two elements: 
+#'  1) txi: a tximport object at transcript level
+#'  2) tx2gene: the transcript/gene ids table used in the txi object
+#' 
+#' @importFrom tximport tximport
+#' @export
+#'
+#' @examples \dontrun{
+#' prjs <- c("/home/user/CirComPara2/batch1",
+#'           "/home/user/CirComPara2/batch2")
+#' 
+#' ## get the linear transcripts' expression
+#' trx_ls <- merge_lin_counts(prjs)
+#' 
+#' trx <- trx_ls$txi
+#' 
+#' ## get the linear gene expression#' 
+#' gnx <- tximport::summarizeToGene(trx_ls$txi, trx_ls$tx2gene)
+#' }
+merge_lin_counts <- function(prj_paths, ...) {
+  
+  t_data_files <- 
+    sapply(prj_paths, function(f) {
+      dir(path = f,
+          pattern = "t_data.ctab",
+          full.names = TRUE,
+          recursive = TRUE)
+    })
+  names(t_data_files) <-
+    gsub(file.path(".*", "samples", "([^/]+)", 
+                   "processings", "stringtie", "ballgown_ctabs", 
+                   "t_data.ctab"),
+         "\\1",
+         t_data_files)
+  
+  tx2gene <- 
+    data.table::fread(c(t_data_files)[1], 
+                      data.table = F)[, c("t_name", "gene_id", "gene_name", 
+                                          "chr", "start", "end", "strand", 
+                                          "num_exons", "length")]
+  
+  txi <- tximport::tximport(files = t_data_files,
+                            importer = data.table::fread,
+                            type = "stringtie",
+                            tx2gene = tx2gene,
+                            txIdCol = "t_name",
+                            geneIdCol = "gene_id",
+                            txOut = T,
+                            ...)
+  
+  list(txi = txi, tx2gene = tx2gene)
+}
+
 #' Combine the results of multiple CirComPara2 analyses
 #'
 #' This function will combine multiple CirComPara2 analyses into single output
@@ -380,7 +441,7 @@ get_circrna_host_genes <- function(circ_ids, gtf_file) {
 #' must be identified by. 2 by default.
 #' @param min_reads the minimum number of backspliced reads a circRNA must have
 #' to be kept. 2 by default.
-#' @param merge_lin logical indicating whether to merge also the files
+#' @param merge_lin_bks logical indicating whether to merge also the files
 #' reporting the number of reads linearly mapped into the backsplices.
 #' FALSE by default.
 #' @param recycle_existing_lincount a logical indicating whether to use
@@ -394,26 +455,71 @@ get_circrna_host_genes <- function(circ_ids, gtf_file) {
 #' @param gtf_file the path of the Ensemble GTF gene annotation file; 
 #' \code{auto} will use the GTF path from the vars.py file; 
 #' \code{NULL} will skip this step.
+#' @param is_stranded TRUE if circRNA strandedness has to be considered
+#' @param merge_lin TRUE to get linear transcript/gene expression merged from 
+#' the projects
 #'
-#' @return a list of two elements: (1) the matrix of the merged samples'
-#' backspliced read counts (\code{ccp_counts_dt}), and (2) the matrix of the
-#' merged samples' backsplice linear read counts (\code{lin_bks_counts}). The
-#' latter is \code{NA} when \code{merge_lin = FALSE}.
-#' @import data.table
-#' @import Rsubread
-#' @export
+#' @return a list of four elements: 
+#' (1) \code{ccp_counts_dt}: the matrix of the merged samples'backspliced read 
+#' counts; 
+#' (2) \code{lin_bks_counts}: the matrix of the merged samples' backsplice 
+#' linear read counts if \code{merge_lin_bks = FALSE}, \code{NA} otherwise; 
+#' (3) \code{circ_gene_anno}: the circRNA host-gene annotation; and 
+#' (4) \code{lin_xpr}: the linear transcript expression as read counts, if 
+#' \code{merge_lin = TRUE}, \code{NULL} otherwise. 
+#' @import data.table Rsubread tximport
+#' @export  
 #'
-#' @examples
+#' @examples \dontrun{
+#' prjs <- c("/home/user/circompara2_batch1",
+#'            "/home/user/circompara2_batch2")
+#'            
+#' ## merge the projects           
+#' combined_prjs <- combine_ccp2_runs(prjs)
+#' 
+#' ## circRNA BJR matrix
+#' circrna_raw_counts <- 
+#'   data.frame(combined_prjs$circ_read_count_mt, 
+#'              row.names = "circ_id")
+#'              
+#' ## compute the circular to linear expression proportions (a.k.a. CLPs)
+#' clps <- 
+#'   data.table::dcast(merge(data.table::melt(combined_prjs$circ_read_count_mt, 
+#'                                            id.vars = "circ_id", 
+#'                                            variable.name = "sample_id", 
+#'                                            value.name = "BJR"),
+#'                           data.table::melt(combined_prjs$lin_read_count_mt, 
+#'                                            id.vars = "circ_id", 
+#'                                            variable.name = "sample_id", 
+#'                                            value.name = "lin.reads"),
+#'                            by = c("sample_id", 
+#'                                   "circ_id"))[, CLP := BJR/(BJR + lin.reads)],
+#'                     formula = circ_id ~ sample_id, value.var = "CLP")
+#' 
+#' ## get circRNA host-gene(s)
+#' circrna_hosts <- 
+#'   unique(combined_prjs$circ_gene_anno[, .(circ_id, gene_id, 
+#'                                           gene_name)])[, lapply(.SD, 
+#'                                                         function(x){paste0(x, 
+#'                                                            collapse = "|")}), 
+#'                                                        by = circ_id]
+#' ## prepare for differential gene expression analysis with DESeq2
+#' gnx <- tximport::summarizeToGene(combined_prjs$lin_xpr$txi, 
+#'                                  combined_prjs$lin_xpr$tx2gene)
+#' sampleTable <- data.frame(sample_id = colnames(combined_prjs$lin_xpr$txi$counts))
+#' dds <- DESeq2::DESeqDataSetFromTximport(gnx, sampleTable, ~1)
+#' }
 combine_ccp2_runs <-
   function(files,
            min_methods = 2,
            min_reads = 2,
-           merge_lin = FALSE,
+           merge_lin_bks = TRUE,
            recycle_existing_lincount = FALSE,
            is_paired_end = TRUE,
            is_stranded = TRUE,
            cpus = 1,
-           gtf_file = "auto") {
+           gtf_file = "auto",
+           merge_lin = TRUE) {
     
     # files <- "/sharedfs01/enrico/ccp2_nf/tmp/PMF/"
     # files <- c("/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_4142",
@@ -427,8 +533,6 @@ combine_ccp2_runs <-
     # files <- "/sharedfs01/enrico/CLL/analysis/CCP2/"
     # files <- c("/sharedfs01/enrico/CLL/analysis/CCP2/",
     #            "/sharedfs01/enrico/CLL/analysis/PRJNA432966/")
-    # require(data.table)
-    # require(Rsubread)
     
     is_list_file <- FALSE ## TODO: determine automatically
     if (is_list_file) {
@@ -489,7 +593,7 @@ combine_ccp2_runs <-
     ## -------- merge the linearly spliced reads on the BJ -------- ##
     lin_bks_counts <- NA
     
-    if (merge_lin) {
+    if (merge_lin_bks) {
       ## merge also the linear counts
       ## N.B. this might require to compute the linear counts for circRNAs not
       ## detected in the sample (but detected in other samples)
@@ -549,8 +653,14 @@ combine_ccp2_runs <-
                                                  cpus)
       }
       
+      ## -------- merge the linear transcript/gene read counts -------- ##
+      lin_xpr <- merge_lin_counts(files)
+      
+      ## -------- END -------- ##
+      message("Done merging CirComPara2 projects!")
       list(circ_read_count_mt = ccp_counts_dt,
+           lin_read_count_mt = lin_bks_counts,
            circ_gene_anno = circ_gene_anno,
-           lin_read_count_mt = lin_bks_counts)
+           lin_xpr = lin_xpr)
     }
   }
