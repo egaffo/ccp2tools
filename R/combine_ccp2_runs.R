@@ -267,6 +267,35 @@ compute_lin_bks_counts <- function(files, circ_ids,
   lin_bks_counts
 }
 
+merge_lin_bks_counts <- function(files) {
+  
+  ## find the ccp_bks_linexp.csv files
+  ccp_bks_linexp_files <-
+    unlist(sapply(files,
+                  function(f) {
+                    dir(path = f,
+                        pattern = "ccp_bks_linexp.csv",
+                        full.names = TRUE,
+                        recursive = TRUE) },
+                  simplify = TRUE,
+                  USE.NAMES = FALSE))
+  
+  message("Combining the reads linearly spliced on the backsplice ",
+          "junctions from ",
+          length(files),
+          " projects...")
+  
+  ccp_bks_linexp <- data.table::rbindlist(sapply(ccp_bks_linexp_files,
+                                                 data.table::fread,
+                                                 simplify = FALSE),
+                                          use.names = TRUE)
+  
+  ## return a matrix
+  data.table::dcast(data = ccp_bks_linexp, 
+                    formula = circ_id ~ sample_id, 
+                    value.var = "lin.reads", 
+                    fill = NA)
+}
 
 #' Combine the results of multiple CirComPara2 analyses
 #'
@@ -337,6 +366,7 @@ combine_ccp2_runs <-
       files <- readLines(files)
     }
     
+    ## -------- merge backsplice junction read counts -------- ##
     ccp_counts <- get_ccp_counts(files)
     
     if (is_stranded) {
@@ -364,7 +394,10 @@ combine_ccp2_runs <-
                         value.var = "read.count",
                         fill = 0)
     
-    ## -------- linearly spliced reads on the BJ -------- ##
+    ## -------- (optional?) compute circRNA host-gene annotation -------- ##
+    ## TODO
+    
+    ## -------- merge the linearly spliced reads on the BJ -------- ##
     lin_bks_counts <- NA
     
     if (merge_lin) {
@@ -376,9 +409,46 @@ combine_ccp2_runs <-
       if (recycle_existing_lincount) {
         ## recycle the existing lincount files and compute the lincounts
         ## for the circRNAs expressed only in other samples
-        ## TODO
-        message("Use of pre-computed linearly spliced read counts ",
-                "not yet implemented. Skipping.")
+        message("Use of pre-computed linearly spliced read counts")
+        
+        lin_bks_counts <- merge_lin_bks_counts(files)
+        
+        # ## here we have two choices: 
+        # ##   1) just overlook the linear bks reads of the circRNAs not detected
+        # ##      in some samples (if circRNA expression is 0, then the CLR and 
+        # ##      CLP will be 0)
+        # ##   2) calculate the lin bks reads of the missed circRNAs in their
+        # ##      samples
+        # compute_missing_linbks <- FALSE
+        # if (compute_missing_linbks) {
+        #   
+        #   ## get missed circRNAs in samples
+        #   missed_bks <- 
+        #     data.table::melt(data = lin_bks_counts,
+        #                      na.rm = FALSE,
+        #                      id.vars = "circ_id",
+        #                      variable.name = "sample_id",
+        #                      value.name = "lin.reads")[is.na(lin.reads)]
+        #   
+        #   if (nrow(missed_bks) > 0) {
+        #     ## TODO
+        #   }
+        # }
+        
+        ## update circ_ids
+        if (is_stranded) {
+          circid_map <- data.table::data.table(circ_id = ccp_counts_dt$circ_id)
+          circid_map[, circ_id_s := circ_id][, circ_id := sub(":.$", "", 
+                                                              circ_id_s)]
+          # dups <- circid_map[, .N, by = circ_id][N > 1, circ_id]
+          # circid_map[, .N, by = circ_id_s][N > 1]
+          
+          lin_bks_counts <- 
+            merge(circid_map,
+                  lin_bks_counts,
+                  all.x = TRUE, all.y = FALSE,
+                  by = "circ_id")[, circ_id := circ_id_s][, circ_id_s := NULL][]
+        }
       }else {
         
         ## count the linearly spliced reads on the backsplice ends
@@ -387,7 +457,6 @@ combine_ccp2_runs <-
                                                  is_stranded,
                                                  is_paired_end,
                                                  cpus)
-        
       }
       
       list(circ_read_count_mt = ccp_counts_dt,
