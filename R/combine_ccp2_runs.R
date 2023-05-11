@@ -340,6 +340,9 @@ get_circrna_host_genes <- function(circ_ids, gtf_file) {
   }
   colnames(circ_dt) <- cols
   
+  circ_dt[, `:=`(start = as.integer(start),
+                 end = as.integer(end))]
+  
   circ_gr <- 
     GenomicRanges::makeGRangesFromDataFrame(df = circ_dt, 
                                             keep.extra.columns = TRUE,
@@ -359,7 +362,10 @@ get_circrna_host_genes <- function(circ_ids, gtf_file) {
   hits_df <- as.data.frame(hits)
   hits_df$circ_id <- circ_gr$circ_id[hits_df$queryHits]
   
-  data.table::data.table(cbind(hits_df, data.frame(gtf_gr)[hits_df$subjectHits, ]))
+  data.table::data.table(cbind(hits_df, 
+                               data.frame(gtf_gr[gtf_gr$type == 
+                                                   "gene"])[hits_df$subjectHits, 
+                                                            ]))
 }
 
 #' Merge multiple CirComPara2 runs to get linear transcript/gene expression
