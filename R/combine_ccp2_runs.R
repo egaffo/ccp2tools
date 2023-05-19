@@ -395,12 +395,12 @@ get_circrna_host_genes <- function(circ_ids, gtf_file) {
 merge_lin_counts <- function(prj_paths, ...) {
   
   t_data_files <- 
-    sapply(prj_paths, function(f) {
+    unlist(sapply(prj_paths, function(f) {
       dir(path = f,
           pattern = "t_data.ctab",
           full.names = TRUE,
           recursive = TRUE)
-    })
+    }))
   names(t_data_files) <-
     gsub(file.path(".*", "samples", "([^/]+)", 
                    "processings", "stringtie", "ballgown_ctabs", 
