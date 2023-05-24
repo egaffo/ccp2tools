@@ -520,25 +520,12 @@ combine_ccp2_runs <-
            min_methods = 2,
            min_reads = 2,
            merge_lin_bks = TRUE,
-           recycle_existing_lincount = FALSE,
+           recycle_existing_lincount = TRUE,
            is_paired_end = TRUE,
            is_stranded = TRUE,
            cpus = 1,
            gtf_file = "auto",
            merge_lin = TRUE) {
-    
-    # files <- "/sharedfs01/enrico/ccp2_nf/tmp/PMF/"
-    # files <- c("/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_4142",
-    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_4465",
-    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_5939",
-    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_7073",
-    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_7274",
-    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_7475",
-    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_7710",
-    #            "/sharedfs01/enrico/ccp2_nf/tmp/PMF//PMF_7839")
-    # files <- "/sharedfs01/enrico/CLL/analysis/CCP2/"
-    # files <- c("/sharedfs01/enrico/CLL/analysis/CCP2/",
-    #            "/sharedfs01/enrico/CLL/analysis/PRJNA432966/")
     
     is_list_file <- FALSE ## TODO: determine automatically
     if (is_list_file) {
@@ -590,9 +577,9 @@ combine_ccp2_runs <-
                                                  "vars.py")), 
                              value = TRUE), "=")[[1]][2])
         message("Using gene annotation from file ", gtf_file)
-        # file.exists(gtf_file)
+        # TODO: check file.exists(gtf_file)
       }
-      # gtf_file <- "/sharedfs01/annotation/Homo_sapiens.GRCh38.108.gtf"
+      
       circ_gene_anno <- get_circrna_host_genes(reliable_circ_ids, gtf_file)
     }
     
@@ -639,6 +626,8 @@ combine_ccp2_runs <-
           circid_map <- data.table::data.table(circ_id = ccp_counts_dt$circ_id)
           circid_map[, circ_id_s := circ_id][, circ_id := sub(":.$", "", 
                                                               circ_id_s)]
+          
+          # TODO: check duplicate IDs
           # dups <- circid_map[, .N, by = circ_id][N > 1, circ_id]
           # circid_map[, .N, by = circ_id_s][N > 1]
           
