@@ -6,25 +6,35 @@
 \usage{
 combine_ccp2_runs(
   files,
+  merge_circs = TRUE,
+  merge_lin_bks = TRUE,
+  merge_lin = TRUE,
   min_methods = 2,
   min_reads = 2,
-  merge_lin_bks = TRUE,
   recycle_existing_lincount = TRUE,
   is_paired_end = TRUE,
   is_stranded = TRUE,
   cpus = 1,
   gtf_file = "auto",
-  merge_lin = TRUE
+  ...
 )
 }
 \arguments{
 \item{files}{a character indicating the path of the parent directory of the
-CirComPara2 runs to be combined.
-\code{files} child directories will be scan to search for the CirComPara2 
-results to merge (i.e. the circRNA backsplice read counts and linear read 
-counts).
-\code{files} might also be a file listing either (1) directories,
-(2) bks.counts.union.csv files, or (3) a mix of directories and files.}
+CirComPara2 runs to be combined. \code{files} child directories will be
+scan to search for the CirComPara2 results to merge (i.e. the circRNA
+backsplice read counts and linear read counts). \code{files} might also be
+a file listing either (1) directories, (2) bks.counts.union.csv files, or
+(3) a mix of directories and files.}
+
+\item{merge_circs}{\code{TRUE} to get merged backsplice read count matrix and
+gene annotation of circRNAs (default: \code{TRUE})}
+
+\item{merge_lin_bks}{\code{TRUE} indicates to merge the files reporting the
+number of reads linearly mapped into the backsplices (default: \code{TRUE})}
+
+\item{merge_lin}{\code{TRUE} to get linear transcript/gene expression merged
+from the projects (default: \code{TRUE})}
 
 \item{min_methods}{the minimum number of circRNA-detection methods a circRNA
 must be identified by. 2 by default.}
@@ -32,48 +42,44 @@ must be identified by. 2 by default.}
 \item{min_reads}{the minimum number of backspliced reads a circRNA must have
 to be kept. 2 by default.}
 
-\item{merge_lin_bks}{logical indicating whether to merge also the files
-reporting the number of reads linearly mapped into the backsplices.
-FALSE by default.}
-
 \item{recycle_existing_lincount}{a logical indicating whether to use
 previously computed backsplice linear alignment read count files and only
-compute the possible missed backsplices that have been detected only in other
-samples. FALSE by default. (this option is not currently implemented yet).}
+compute the possible missed backsplices that have been detected only in
+other samples. FALSE by default. (this option is not currently implemented
+yet).}
 
-\item{is_paired_end}{logical indicating if the linear alignments are paired-end.
-TRUE by default.}
+\item{is_paired_end}{logical indicating if the linear alignments are
+paired-end (default: \code{TRUE})}
 
 \item{is_stranded}{TRUE if circRNA strandedness has to be considered}
 
 \item{cpus}{integer indicating the number of parallel threads to use. 1 by
 default.}
 
-\item{gtf_file}{the path of the Ensemble GTF gene annotation file; 
-\code{auto} will use the GTF path from the vars.py file; 
-\code{NULL} will skip this step.}
+\item{gtf_file}{the path of the Ensemble GTF gene annotation file;
+\code{auto} will use the GTF path from the vars.py file; \code{NULL} will
+skip this step.}
 
-\item{merge_lin}{TRUE to get linear transcript/gene expression merged from 
-the projects}
+\item{...}{additional parameters that will be passed to the tximport function
+for linear gene expression}
 }
 \value{
-a list of four elements: 
-(1) \code{ccp_counts_dt}: the matrix of the merged samples'backspliced read 
-counts; 
-(2) \code{lin_bks_counts}: the matrix of the merged samples' backsplice 
-linear read counts if \code{merge_lin_bks = FALSE}, \code{NA} otherwise; 
-(3) \code{circ_gene_anno}: the circRNA host-gene annotation; and 
-(4) \code{lin_xpr}: the linear transcript expression as read counts, if 
-\code{merge_lin = TRUE}, \code{NULL} otherwise.
+a list of four elements: (1) \code{ccp_counts_dt}: the matrix of the
+  merged samples'backspliced read counts; (2) \code{lin_bks_counts}: the
+  matrix of the merged samples' backsplice linear read counts if
+  \code{merge_lin_bks = FALSE}, \code{NA} otherwise; (3)
+  \code{circ_gene_anno}: the circRNA host-gene annotation; and (4)
+  \code{lin_xpr}: the linear transcript expression as read counts, if
+  \code{merge_lin = TRUE}, \code{NULL} otherwise.
 }
 \description{
-This function will combine multiple CirComPara2 analyses into single output
-result files. Specifically, it combines the circRNA expression of all 
-samples from the different projects into one expression matrix reporting the 
-backsplice junction read counts. Moreover, it also combines the read counts 
-of the reads linearly spliced on the backsplice junctions. For the circRNAs 
-not detected in all the projects it will calculate the linearly spliced read 
-counts by parsing the linear alignment files.
+This function will merge the otputs of multiple CirComPara2 analyses into
+single output result files. Specifically, it combines the circRNA expression
+of all samples from the different projects into one expression matrix
+reporting the backsplice junction read counts. Moreover, it also combines the
+read counts of the reads linearly spliced on the backsplice junctions. For
+the circRNAs not detected in all the projects it will calculate the linearly
+spliced read counts by parsing the linear alignment files.
 }
 \examples{
 \dontrun{

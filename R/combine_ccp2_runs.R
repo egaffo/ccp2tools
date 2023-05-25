@@ -365,7 +365,7 @@ get_circrna_host_genes <- function(circ_ids, gtf_file) {
   data.table::data.table(cbind(hits_df, 
                                data.frame(gtf_gr[gtf_gr$type == 
                                                    "gene"])[hits_df$subjectHits, 
-                                                            ]))
+                                                   ]))
 }
 
 #' Merge multiple CirComPara2 runs to get linear transcript/gene expression
@@ -428,54 +428,55 @@ merge_lin_counts <- function(prj_paths, ...) {
 
 #' Combine the results of multiple CirComPara2 analyses
 #'
-#' This function will combine multiple CirComPara2 analyses into single output
-#' result files. Specifically, it combines the circRNA expression of all 
-#' samples from the different projects into one expression matrix reporting the 
-#' backsplice junction read counts. Moreover, it also combines the read counts 
-#' of the reads linearly spliced on the backsplice junctions. For the circRNAs 
-#' not detected in all the projects it will calculate the linearly spliced read 
-#' counts by parsing the linear alignment files.
+#' This function will merge the otputs of multiple CirComPara2 analyses into
+#' single output result files. Specifically, it combines the circRNA expression
+#' of all samples from the different projects into one expression matrix
+#' reporting the backsplice junction read counts. Moreover, it also combines the
+#' read counts of the reads linearly spliced on the backsplice junctions. For
+#' the circRNAs not detected in all the projects it will calculate the linearly
+#' spliced read counts by parsing the linear alignment files.
 #'
 #' @param files a character indicating the path of the parent directory of the
-#' CirComPara2 runs to be combined.
-#' \code{files} child directories will be scan to search for the CirComPara2 
-#' results to merge (i.e. the circRNA backsplice read counts and linear read 
-#' counts).
-#' \code{files} might also be a file listing either (1) directories,
-#' (2) bks.counts.union.csv files, or (3) a mix of directories and files.
+#'   CirComPara2 runs to be combined. \code{files} child directories will be
+#'   scan to search for the CirComPara2 results to merge (i.e. the circRNA
+#'   backsplice read counts and linear read counts). \code{files} might also be
+#'   a file listing either (1) directories, (2) bks.counts.union.csv files, or
+#'   (3) a mix of directories and files.
+#' @param merge_circs \code{TRUE} to get merged backsplice read count matrix and
+#'   gene annotation of circRNAs (default: \code{TRUE})
+#' @param merge_lin_bks \code{TRUE} indicates to merge the files reporting the
+#'   number of reads linearly mapped into the backsplices (default: \code{TRUE})
+#' @param merge_lin \code{TRUE} to get linear transcript/gene expression merged
+#'   from the projects (default: \code{TRUE})
 #' @param min_methods the minimum number of circRNA-detection methods a circRNA
-#' must be identified by. 2 by default.
+#'   must be identified by. 2 by default.
 #' @param min_reads the minimum number of backspliced reads a circRNA must have
-#' to be kept. 2 by default.
-#' @param merge_lin_bks logical indicating whether to merge also the files
-#' reporting the number of reads linearly mapped into the backsplices.
-#' FALSE by default.
+#'   to be kept. 2 by default.
 #' @param recycle_existing_lincount a logical indicating whether to use
-#' previously computed backsplice linear alignment read count files and only
-#' compute the possible missed backsplices that have been detected only in other
-#' samples. FALSE by default. (this option is not currently implemented yet).
-#' @param is_paired_end logical indicating if the linear alignments are paired-end.
-#' TRUE by default.
+#'   previously computed backsplice linear alignment read count files and only
+#'   compute the possible missed backsplices that have been detected only in
+#'   other samples. FALSE by default. (this option is not currently implemented
+#'   yet).
+#' @param is_paired_end logical indicating if the linear alignments are
+#'   paired-end (default: \code{TRUE})
 #' @param cpus integer indicating the number of parallel threads to use. 1 by
-#' default.
-#' @param gtf_file the path of the Ensemble GTF gene annotation file; 
-#' \code{auto} will use the GTF path from the vars.py file; 
-#' \code{NULL} will skip this step.
+#'   default.
+#' @param gtf_file the path of the Ensemble GTF gene annotation file;
+#'   \code{auto} will use the GTF path from the vars.py file; \code{NULL} will
+#'   skip this step.
 #' @param is_stranded TRUE if circRNA strandedness has to be considered
-#' @param merge_lin TRUE to get linear transcript/gene expression merged from 
-#' the projects
-#'
-#' @return a list of four elements: 
-#' (1) \code{ccp_counts_dt}: the matrix of the merged samples'backspliced read 
-#' counts; 
-#' (2) \code{lin_bks_counts}: the matrix of the merged samples' backsplice 
-#' linear read counts if \code{merge_lin_bks = FALSE}, \code{NA} otherwise; 
-#' (3) \code{circ_gene_anno}: the circRNA host-gene annotation; and 
-#' (4) \code{lin_xpr}: the linear transcript expression as read counts, if 
-#' \code{merge_lin = TRUE}, \code{NULL} otherwise. 
+#' @param ... additional parameters that will be passed to the tximport function
+#'   for linear gene expression
+#' @return a list of four elements: (1) \code{ccp_counts_dt}: the matrix of the
+#'   merged samples'backspliced read counts; (2) \code{lin_bks_counts}: the
+#'   matrix of the merged samples' backsplice linear read counts if
+#'   \code{merge_lin_bks = FALSE}, \code{NA} otherwise; (3)
+#'   \code{circ_gene_anno}: the circRNA host-gene annotation; and (4)
+#'   \code{lin_xpr}: the linear transcript expression as read counts, if
+#'   \code{merge_lin = TRUE}, \code{NULL} otherwise.
 #' @import data.table Rsubread tximport
-#' @export  
-#'
+#' @export
+#' 
 #' @examples \dontrun{
 #' prjs <- c("/home/user/circompara2_batch1",
 #'            "/home/user/circompara2_batch2")
@@ -517,15 +518,17 @@ merge_lin_counts <- function(prj_paths, ...) {
 #' }
 combine_ccp2_runs <-
   function(files,
+           merge_circs = TRUE,
+           merge_lin_bks = TRUE,
+           merge_lin = TRUE,
            min_methods = 2,
            min_reads = 2,
-           merge_lin_bks = TRUE,
            recycle_existing_lincount = TRUE,
            is_paired_end = TRUE,
            is_stranded = TRUE,
            cpus = 1,
            gtf_file = "auto",
-           merge_lin = TRUE) {
+           ...) {
     
     is_list_file <- FALSE ## TODO: determine automatically
     if (is_list_file) {
@@ -537,55 +540,58 @@ combine_ccp2_runs <-
       files <- readLines(files)
     }
     
+    ccp_counts_dt <- NA
+    circ_gene_anno <- NA
     ## -------- merge backsplice junction read counts -------- ##
-    ccp_counts <- merge_ccp_counts(files)
-    
-    if (is_stranded) {
-      ## add strand to the circRNA identifier
-      ccp_counts[, circ_id := paste0(circ_id, ":", strand), 
-                 by = .(circ_id, strand)]
-    }
-    
-    ## Select relible circRNAs
-    message("Removing circRNAs detected with <= ",
-            min_reads,
-            " BJRs and by <= ",
-            min_methods,
-            " circRNA detection methods, in all samples...")
-    reliable_circ_ids <-
-      ccp_counts[n_methods >= min_methods &
-                   read.count >= min_reads,
-                 unique(circ_id)]
-    message(length(reliable_circ_ids), " reliable circRNAs were kept.")
-    
-    ## make the reliable circRNA expression matrix
-    ccp_counts_dt <-
-      data.table::dcast(data = ccp_counts[circ_id %in% reliable_circ_ids],
-                        formula = circ_id ~ sample_id,
-                        value.var = "read.count",
-                        fill = 0)
-    
-    ## -------- compute circRNA host-gene annotation -------- ##
-    circ_gene_anno <- NULL
-    
-    if (!is.null(gtf_file)) {
-      if (gtf_file == "auto") {
-        gtf_file <- 
-          gsub(" |\"|\'", "", 
-               strsplit(grep("ANNOTATION", 
-                             readLines(file.path(files[1], 
-                                                 "vars.py")), 
-                             value = TRUE), "=")[[1]][2])
-        message("Using gene annotation from file ", gtf_file)
-        # TODO: check file.exists(gtf_file)
+    if (merge_circs) {
+      
+      ccp_counts <- merge_ccp_counts(files)
+      
+      if (is_stranded) {
+        ## add strand to the circRNA identifier
+        ccp_counts[, circ_id := paste0(circ_id, ":", strand), 
+                   by = .(circ_id, strand)]
       }
       
-      circ_gene_anno <- get_circrna_host_genes(reliable_circ_ids, gtf_file)
+      ## Select relible circRNAs
+      message("Removing circRNAs detected with <= ",
+              min_reads,
+              " BJRs and by <= ",
+              min_methods,
+              " circRNA detection methods, in all samples...")
+      reliable_circ_ids <-
+        ccp_counts[n_methods >= min_methods &
+                     read.count >= min_reads,
+                   unique(circ_id)]
+      message(length(reliable_circ_ids), " reliable circRNAs were kept.")
+      
+      ## make the reliable circRNA expression matrix
+      ccp_counts_dt <-
+        data.table::dcast(data = ccp_counts[circ_id %in% reliable_circ_ids],
+                          formula = circ_id ~ sample_id,
+                          value.var = "read.count",
+                          fill = 0)
+      
+      ## -------- compute circRNA host-gene annotation -------- ##
+      if (!is.null(gtf_file)) {
+        if (gtf_file == "auto") {
+          gtf_file <- 
+            gsub(" |\"|\'", "", 
+                 strsplit(grep("ANNOTATION", 
+                               readLines(file.path(files[1], 
+                                                   "vars.py")), 
+                               value = TRUE), "=")[[1]][2])
+          message("Using gene annotation from file ", gtf_file)
+          # TODO: check file.exists(gtf_file)
+        }
+        
+        circ_gene_anno <- get_circrna_host_genes(reliable_circ_ids, gtf_file)
+      }
     }
+    
     
     ## -------- merge the linearly spliced reads on the BJ -------- ##
     lin_bks_counts <- NA
-    
     if (merge_lin_bks) {
       ## merge also the linear counts
       ## N.B. this might require to compute the linear counts for circRNAs not
@@ -649,7 +655,10 @@ combine_ccp2_runs <-
       }
       
       ## -------- merge the linear transcript/gene read counts -------- ##
-      lin_xpr <- merge_lin_counts(files)
+      lin_xpr <- NA
+      if (merge_lin) {
+        lin_xpr <- merge_lin_counts(files, ...)
+      }
       
       ## -------- END -------- ##
       message("Done merging CirComPara2 projects!")
