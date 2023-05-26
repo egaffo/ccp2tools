@@ -455,8 +455,7 @@ merge_lin_counts <- function(prj_paths, ...) {
 #' @param recycle_existing_lincount a logical indicating whether to use
 #'   previously computed backsplice linear alignment read count files and only
 #'   compute the possible missed backsplices that have been detected only in
-#'   other samples. FALSE by default. (this option is not currently implemented
-#'   yet).
+#'   other samples (default: \code{TRUE}). 
 #' @param is_paired_end logical indicating if the linear alignments are
 #'   paired-end (default: \code{TRUE})
 #' @param cpus integer indicating the number of parallel threads to use. 1 by
@@ -467,13 +466,14 @@ merge_lin_counts <- function(prj_paths, ...) {
 #' @param is_stranded TRUE if circRNA strandedness has to be considered
 #' @param ... additional parameters that will be passed to the tximport function
 #'   for linear gene expression
-#' @return a list of four elements: (1) \code{ccp_counts_dt}: the matrix of the
-#'   merged samples'backspliced read counts; (2) \code{lin_bks_counts}: the
-#'   matrix of the merged samples' backsplice linear read counts if
-#'   \code{merge_lin_bks = FALSE}, \code{NA} otherwise; (3)
-#'   \code{circ_gene_anno}: the circRNA host-gene annotation; and (4)
-#'   \code{lin_xpr}: the linear transcript expression as read counts, if
-#'   \code{merge_lin = TRUE}, \code{NULL} otherwise.
+#' @return a list of four elements: (1) \code{circ_read_count_mt}: the matrix of
+#'   the merged samples'backspliced read counts, \code{merge_circs = TRUE},
+#'   \code{NA} otherwise; (2) \code{lin_read_count_mt}: the matrix of the merged
+#'   samples' backsplice linear read counts if \code{merge_lin_bks = TRUE},
+#'   \code{NA} otherwise; (3) \code{circ_gene_anno}: the circRNA host-gene
+#'   annotation; and (4) \code{lin_xpr}: a list of two elements, namely the
+#'   linear transcript expression as a \code{tximport} result and the associated
+#'   \code{tx2gene} data frame, if \code{merge_lin = TRUE}, \code{NA} otherwise.
 #' @import data.table Rsubread tximport
 #' @export
 #' 

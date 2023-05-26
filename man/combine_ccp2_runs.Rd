@@ -45,8 +45,7 @@ to be kept. 2 by default.}
 \item{recycle_existing_lincount}{a logical indicating whether to use
 previously computed backsplice linear alignment read count files and only
 compute the possible missed backsplices that have been detected only in
-other samples. FALSE by default. (this option is not currently implemented
-yet).}
+other samples (default: \code{TRUE}).}
 
 \item{is_paired_end}{logical indicating if the linear alignments are
 paired-end (default: \code{TRUE})}
@@ -64,13 +63,14 @@ skip this step.}
 for linear gene expression}
 }
 \value{
-a list of four elements: (1) \code{ccp_counts_dt}: the matrix of the
-  merged samples'backspliced read counts; (2) \code{lin_bks_counts}: the
-  matrix of the merged samples' backsplice linear read counts if
-  \code{merge_lin_bks = FALSE}, \code{NA} otherwise; (3)
-  \code{circ_gene_anno}: the circRNA host-gene annotation; and (4)
-  \code{lin_xpr}: the linear transcript expression as read counts, if
-  \code{merge_lin = TRUE}, \code{NULL} otherwise.
+a list of four elements: (1) \code{circ_read_count_mt}: the matrix of
+  the merged samples'backspliced read counts, \code{merge_circs = TRUE},
+  \code{NA} otherwise; (2) \code{lin_read_count_mt}: the matrix of the merged
+  samples' backsplice linear read counts if \code{merge_lin_bks = TRUE},
+  \code{NA} otherwise; (3) \code{circ_gene_anno}: the circRNA host-gene
+  annotation; and (4) \code{lin_xpr}: a list of two elements, namely the
+  linear transcript expression as a \code{tximport} result and the associated
+  \code{tx2gene} data frame, if \code{merge_lin = TRUE}, \code{NA} otherwise.
 }
 \description{
 This function will merge the otputs of multiple CirComPara2 analyses into
