@@ -629,19 +629,27 @@ combine_ccp2_runs <-
         
         ## update circ_ids
         if (is_stranded) {
-          circid_map <- data.table::data.table(circ_id = ccp_counts_dt$circ_id)
-          circid_map[, circ_id_s := circ_id][, circ_id := sub(":.$", "", 
-                                                              circ_id_s)]
           
-          # TODO: check duplicate IDs
-          # dups <- circid_map[, .N, by = circ_id][N > 1, circ_id]
-          # circid_map[, .N, by = circ_id_s][N > 1]
-          
-          lin_bks_counts <- 
-            merge(circid_map,
-                  lin_bks_counts,
-                  all.x = TRUE, all.y = FALSE,
-                  by = "circ_id")[, circ_id := circ_id_s][, circ_id_s := NULL][]
+          if (merge_circs) {
+            circid_map <- data.table::data.table(circ_id = ccp_counts_dt$circ_id)
+            circid_map[, circ_id_s := circ_id][, circ_id := sub(":.$", "", 
+                                                                circ_id_s)]
+            
+            # TODO: check duplicate IDs
+            # dups <- circid_map[, .N, by = circ_id][N > 1, circ_id]
+            # circid_map[, .N, by = circ_id_s][N > 1]
+            
+            lin_bks_counts <- 
+              merge(circid_map,
+                    lin_bks_counts,
+                    all.x = TRUE, all.y = FALSE,
+                    by = "circ_id")[, circ_id := circ_id_s][, circ_id_s := NULL][] 
+          } else {
+            warning("Merging the existing linearly-spliced-read-aligned-to-backsplice ", 
+                    "counts accounting the strandedness is only available when",
+                    " merge_circs = TRUE. Strand information will not be ", 
+                    "considered.")
+          }
         }
       }else {
         
@@ -653,18 +661,19 @@ combine_ccp2_runs <-
                                                  is_paired_end,
                                                  cpus)
       }
-      
-      ## -------- merge the linear transcript/gene read counts -------- ##
-      lin_xpr <- NA
-      if (merge_lin) {
-        lin_xpr <- merge_lin_counts(files, ...)
-      }
-      
-      ## -------- END -------- ##
-      message("Done merging CirComPara2 projects!")
-      list(circ_read_count_mt = ccp_counts_dt,
-           lin_read_count_mt = lin_bks_counts,
-           circ_gene_anno = circ_gene_anno,
-           lin_xpr = lin_xpr)
     }
+    
+    ## -------- merge the linear transcript/gene read counts -------- ##
+    lin_xpr <- NA
+    if (merge_lin) {
+      lin_xpr <- merge_lin_counts(files, ...)
+    }
+    
+    ## -------- END -------- ##
+    message("Done merging CirComPara2 projects!")
+    list(circ_read_count_mt = ccp_counts_dt,
+         lin_read_count_mt = lin_bks_counts,
+         circ_gene_anno = circ_gene_anno,
+         lin_xpr = lin_xpr)
+    
   }
