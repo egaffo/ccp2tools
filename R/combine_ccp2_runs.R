@@ -203,7 +203,7 @@ compute_lin_bks_counts <- function(files, circ_ids,
                         pattern = "_hisat2.bam$",
                         full.names = TRUE,
                         recursive = TRUE) },
-                  simplify = TRUE,
+                  simplify = FALSE,
                   USE.NAMES = FALSE))
   
   names(bam_files) <-
