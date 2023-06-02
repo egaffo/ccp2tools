@@ -38,7 +38,7 @@ remove_batch_effect_quasibin <-
     full.mod <- cbind(design, X.batch)
 
     fit <- lapply(X = rownames(x),
-                  FUN = fitQuasibinomial,
+                  FUN = fit_quasibinomial,
                   x = x,
                   full.mod = full.mod)
 
