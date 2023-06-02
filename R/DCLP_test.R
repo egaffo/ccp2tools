@@ -12,6 +12,8 @@
 #'
 #' @return numeric P-value
 #' @import aod
+#' 
+#' @export
 #'
 #' @examples
 test_betabin <- 
@@ -59,6 +61,8 @@ test_betabin <-
 #' @importFrom BiocParallel bplapply
 #' @importFrom stats setNames
 #'
+#' @export
+#' 
 #' @examples \dontrun{
 #' # set BiocParallel parameters for parallel execution
 #' biocParams <- BiocParallel::SnowParam(workers = 8, "SOCK", 
