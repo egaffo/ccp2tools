@@ -57,6 +57,7 @@ test_betabin <-
 #'
 #' @return a named vector of P-values
 #' @importFrom BiocParallel bplapply
+#' @importFrom stats setNames
 #'
 #' @examples \dontrun{
 #' # set BiocParallel parameters for parallel execution
@@ -118,5 +119,5 @@ DCLP_test <- function(circ, lin, groups, design = "~ 1", ...) {
                            red = red,
                            ...)
   
-  setNames(object = unlist(ct.pvals), nm = rownames(circ))
+  stats::setNames(object = unlist(ct.pvals), nm = rownames(circ))
 }
