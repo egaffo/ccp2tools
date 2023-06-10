@@ -40,9 +40,9 @@ remove_batch_effect_quasibin <-
     fit <- lapply(X = rownames(x),
                   FUN = fit_quasibinomial,
                   x = x,
-                  full.mod = full.mod)
+                  mod = full.mod)
 
-    beta <- sapply(fit, function(f)f$coefficients[- (seq_len(ncol(design)))],
+    beta <- sapply(fit, function(f)f$coefficients[-(seq_len(ncol(design)))],
                    simplify = T)
 
     beta[is.na(beta)] <- 0
