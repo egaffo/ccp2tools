@@ -2,7 +2,7 @@
 % Please edit documentation in R/remove_batch_effect_quasibin.R
 \name{remove_batch_effect_quasibin}
 \alias{remove_batch_effect_quasibin}
-\title{Remove Batch Effects for proportion data}
+\title{Remove Batch Effects by fitting a Qquasi-binomial GLM}
 \usage{
 remove_batch_effect_quasibin(
   x,
@@ -26,12 +26,12 @@ series of samples. Rows correspond to probes and columns to samples.}
 }
 \value{
 A numeric matrix of proportion values with batch and covariate
-effects removed.
+  effects removed.
 }
 \description{
-A function to remove batch effects from a matrix of proportion
-values. Like the homonymous function from the limma package but for values in
-the range [0..1]. Useful to correct batch effects from CLP matrices.
+A function to remove batch effects from a matrix of proportion values. Like
+the homonymous function from the limma package but for values in the range
+[0..1]. Useful to correct batch effects from CLP matrices.
 }
 \seealso{
 limma::removeBatchEffect()
