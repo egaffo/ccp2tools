@@ -16,7 +16,7 @@ by the model.matrix() function}
 }
 \value{
 an object of class inheriting from "glm", as the output of the
-glm.fit() function
+  glm.fit() function
 }
 \description{
 Auxiliary function to fit a Generalized Linear Model of the quasibinomial
