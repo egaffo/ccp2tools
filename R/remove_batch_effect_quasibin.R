@@ -1,19 +1,24 @@
-#' Remove Batch Effects for proportion data
+#' Remove Batch Effects by fitting a Qquasi-binomial GLM
 #'
-#' A function to remove batch effects from a matrix of proportion
-#' values. Like the homonymous function from the limma package but for values in
-#' the range [0..1]. Useful to correct batch effects from CLP matrices.
+#' A function to remove batch effects from a matrix of proportion values. Like
+#' the homonymous function from the limma package but for values in the range
+#' [0..1]. Useful to correct batch effects from CLP matrices.
 #'
 #' @author Enrico Gaffo
 #' @param x numeric matrix containing proportion (i.e. [0..1]) values for a
-#' series of samples. Rows correspond to probes and columns to samples.
+#'   series of samples. Rows correspond to probes and columns to samples.
 #' @param batch factor or vector indicating batches.
 #' @param covariates matrix or vector of numeric covariates to be adjusted for.
 #' @param design model design matrix
 #' @param ... not used
+#'
+#' @import stats car boot
+#'
+#' @export
+#'
 #' @seealso limma::removeBatchEffect()
 #' @return A numeric matrix of proportion values with batch and covariate
-#' effects removed.
+#'   effects removed.
 remove_batch_effect_quasibin <-
   function(x,
             batch,

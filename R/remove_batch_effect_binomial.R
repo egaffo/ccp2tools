@@ -1,3 +1,20 @@
+#' Remove Batch Effects by fitting a Binomial GLM
+#'
+#' A function to remove batch effects from a matrix of proportion
+#' values. Like the homonymous function from the limma package but for values in
+#' the range [0..1]. Useful to correct batch effects from CLP matrices.
+#'
+#' @author Enrico Gaffo
+#' @param x 
+#' @param batch 
+#' @param covariates 
+#' @param design 
+#' @param ... 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 remove_batch_effect_binomial <-
   function(x,
            batch,

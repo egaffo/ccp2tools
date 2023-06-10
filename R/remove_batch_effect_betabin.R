@@ -16,12 +16,13 @@
 #'   effect vriables
 #' @param ... Further arguments passed to optim within aod::betabin
 #'
-#' @import aod, data.table, stats, car, boot
-#'
+#' @import aod boot car data.table stats
+#' @export
+#' 
 #' @seealso limma::removeBatchEffect()
 #' @return A numeric matrix of proportion values with batch effects removed.
 #' 
-#' @example \dontrun{
+#' @examples \dontrun{
 #' ### test code ####
 #' 
 #' source("R/combine_ccp2_runs.R")
