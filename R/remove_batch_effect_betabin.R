@@ -14,33 +14,35 @@
 #'   to be kept
 #' @param groups a data frame with the sample groups for the batch and main
 #'   effect vriables
+#' @param lg_adjust adjustment factor to avoid proportions of 0 or 1. Default =
+#'   0.
 #' @param ... Further arguments passed to optim within aod::betabin
 #'
 #' @import aod boot car data.table stats
 #' @export
-#' 
+#'
 #' @seealso limma::removeBatchEffect()
 #' @return A numeric matrix of proportion values with batch effects removed.
-#' 
+#'
 #' @examples \dontrun{
 #' ### test code ####
-#' 
+#'
 #' source("R/combine_ccp2_runs.R")
 #' combs <- combine_ccp2_runs(files = c("/sharedfs01/enrico/CLL/analysis/CCP2/",
 #'                                      "/sharedfs01/enrico/CLL/analysis/PRJNA432966/"),
 #'                            merge_circs = T, merge_lin_bks = T, recycle_existing_lincount = T,
 #'                            merge_lin = F)
-#' 
+#'
 #' circs <- as.matrix(data.frame(combs$circ_read_count_mt, row.names = "circ_id", check.names = F))
-#' 
+#'
 #' lins <- as.matrix(data.frame(combs$lin_read_count_mt, row.names = "circ_id", check.names = F))
 #' lins <- lins[rownames(circs), colnames(circs)]
 #' lins[is.na(lins)] <- 0
-#' 
+#'
 #' colnames(circs) <- sub("_.*", "", colnames(circs))
 #' colnames(lins) <- sub("_.*", "", colnames(lins))
-#' 
-#' batch1_data <- 
+#'
+#' batch1_data <-
 #'   data.table::fread("/sharedfs01/enrico/CLL/analysis/R_CLL/data/CLL_meta_short.csv")
 #' batch2_data <-
 #'   data.table::fread("/sharedfs01/enrico/CLL/analysis/R_CLL/data/PRJNA432966_meta.csv")
@@ -54,55 +56,55 @@
 #'
 #' batch <- "Batch"
 #' design <- "~ COND_TRANS"
-#' 
+#'
 #' x <- circs[rowSums(circs[, rownames(meta_df)] > 5) >= 9, rownames(meta_df)]
 #' y <- lins[rownames(x), colnames(x)]
-#' 
+#'
 #' prps <- x / (x + y)
-#' 
+#'
 #' prps[is.na(prps)] <- 0
 #' prps <- prps[rowSums(prps > 0) >= 9, ]
 #' prps <- prps[order(matrixStats::rowVars(prps), decreasing = T)[1:100], ]
-#' 
+#'
 #' # PCA originaldata ####
 #' pcs <- prcomp(t(prps), center = T)
 #' df <- cbind(meta_df, pcs$x[rownames(meta_df), ])
-#' 
+#'
 #' library(ggplot2)
 #' ggplot(df, aes(x = PC1, y = PC2, color = COND_TRANS, shape = Batch)) +
 #'  geom_point(size = 3) +
 #'   ggtitle("original")
-#' 
+#'
 #' ## MDS
-#' # ggplot(cbind(cmdscale(dist(t(prps)))[rownames(meta_df), ], meta_df), 
+#' # ggplot(cbind(cmdscale(dist(t(prps)))[rownames(meta_df), ], meta_df),
 #' #        aes(x = `1`, y = `2`, color = COND_TRANS, shape = Batch)) +
 #' #   geom_point(size = 3)
-#' 
+#'
 #' # PCA logit scale data ####
-#' pcs <- prcomp(t(car::logit(prps, percents = F, adjust = 1e-6)), 
+#' pcs <- prcomp(t(car::logit(prps, percents = F, adjust = 1e-6)),
 #'               center = T, scale. = T)
 #' df <- cbind(meta_df, pcs$x[rownames(meta_df), ])
-#' 
+#'
 #' ggplot(df, aes(x = PC1, y = PC2, color = COND_TRANS, shape = Batch)) +
 #'   geom_point(size = 3) +
 #'   ggtitle("original - logit scale")
-#' 
+#'
 #' # remove batch betabin ####
-#' rbe <- remove_batch_effect_betabin(x = x[rownames(prps), ], 
-#'                                    y = y[rownames(prps), ], 
+#' rbe <- remove_batch_effect_betabin(x = x[rownames(prps), ],
+#'                                    y = y[rownames(prps), ],
 #'                                    groups = meta_df,
-#'                                    batch = "Batch", 
+#'                                    batch = "Batch",
 #'                                    design = "~COND_TRANS")
 #' # summary(rbe)
 #' rbe[is.na(rbe)] <- 0
-#' 
+#'
 #' pcs <- prcomp(t(rbe), center = T)
 #' df <- cbind(meta_df, pcs$x[rownames(meta_df), ])
-#' 
+#'
 #' ggplot(df, aes(x = PC1, y = PC2, color = COND_TRANS, shape = Batch)) +
 #'   geom_point(size = 3) +
 #'   ggtitle("rbe betabin")
-#' 
+#'
 #' # remove batch quasibin ####
 #' source("R/remove_batch_effect_quasibin.R")
 #' source("R/fit_quasibinomial.R")
@@ -111,14 +113,14 @@
 #'                                         design = model.matrix(~COND_TRANS,
 #'                                                               data = meta_df))
 #' rbe.qsb[is.na(rbe.qsb)] <- 0
-#' 
+#'
 #' pcs <- prcomp(t(rbe.qsb), center = T)
 #' df <- cbind(meta_df, pcs$x[rownames(meta_df), ])
-#' 
+#'
 #' ggplot(df, aes(x = PC1, y = PC2, color = COND_TRANS, shape = Batch)) +
 #'   geom_point(size = 3) +
 #'   ggtitle("rbe quasibin")
-#' 
+#'
 #' # remove batch binomial ####
 #' source("R/remove_batch_effect_binomial.R")
 #' rbe.bin <- remove_batch_effect_binomial(x = prps,
@@ -126,29 +128,29 @@
 #'                                         design = model.matrix(~COND_TRANS,
 #'                                                               data = meta_df))
 #' rbe.bin[is.na(rbe.bin)] <- 0
-#' 
+#'
 #' pcs <- prcomp(t(rbe.bin), center = T)
 #' df <- cbind(meta_df, pcs$x[rownames(meta_df), ])
-#' 
+#'
 #' ggplot(df, aes(x = PC1, y = PC2, color = COND_TRANS, shape = Batch)) +
 #'   geom_point(size = 3) +
 #'   ggtitle("rbe bin")
-#' 
+#'
 #' # remove batch limma ####
 #' rbe.lim <- limma::removeBatchEffect(x = prps,
 #'                                     batch = meta_df$Batch,
 #'                                     design = model.matrix(~COND_TRANS,
 #'                                                           data = meta_df))
 #' # rbe.lim[is.na(rbe.lim)] <- 0
-#' 
+#'
 #' pcs <- prcomp(t(rbe.lim), center = T, scale. = T)
 #' df <- cbind(meta_df, pcs$x[rownames(meta_df), ])
-#' 
+#'
 #' ggplot(df, aes(x = PC1, y = PC2, color = COND_TRANS, shape = Batch)) +
 #'   geom_point(size = 3) +
 #'   ggtitle("rbe limma")
-#' 
-#' 
+#'
+#'
 #' # remove batch limma logit ####
 #' rbe.limlg <- limma::removeBatchEffect(x = car::logit(prps, percents = F,
 #'                                                      adjust = 1e-6),
@@ -158,22 +160,23 @@
 #'                                                             data = meta_df))
 #' # rbe.limlg[is.na(rbe.limlg)] <- 1e-6
 #' # rbe.limlg <- boot::inv.logit(rbe.limlg) + 1e-6
-#' 
+#'
 #' pcs <- prcomp(t(rbe.limlg), center = T, scale. = T)
 #' # summary(pcs)
 #' df <- cbind(meta_df, pcs$x[rownames(meta_df), ])
-#' 
+#'
 #' ggplot(df, aes(x = PC1, y = PC2, color = COND_TRANS, shape = Batch)) +
 #'   geom_point(size = 3) +
 #'   ggtitle("rbe limma on logit scaled")
-#' 
-#' 
+#'
+#'
 #' }
 remove_batch_effect_betabin <-
   function(x, y,
            groups,
            batch = NULL,
            design = "~ 1",
+           lg_adjust = 0,
            ...) {
     
     data <- 
@@ -243,8 +246,7 @@ remove_batch_effect_betabin <-
     
     betas[is.na(betas)] <- 0
     
-    LM <- car::logit(props[names(fit), ], percents = F, adjust = 0)
-    # LM <- car::logit(props[names(fit), ], percents = F, adjust = 1e-9)
+    LM <- car::logit(props[names(fit), ], percents = F, adjust = lg_adjust)
     # LM <- boot::logit(props)
     boot::inv.logit(LM - betas %*% t(-X.batch))
   }

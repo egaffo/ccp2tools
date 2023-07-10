@@ -4,7 +4,15 @@
 \alias{remove_batch_effect_betabin}
 \title{Remove Batch Effects by fitting a Beta Binomial GLM}
 \usage{
-remove_batch_effect_betabin(x, y, groups, batch = NULL, design = "~ 1", ...)
+remove_batch_effect_betabin(
+  x,
+  y,
+  groups,
+  batch = NULL,
+  design = "~ 1",
+  lg_adjust = 0,
+  ...
+)
 }
 \arguments{
 \item{x}{a numeric matrix with the BJR counts}
@@ -20,6 +28,9 @@ effect has to be removed}
 
 \item{design}{a vector indicating the names of the variables which effect has
 to be kept}
+
+\item{lg_adjust}{adjustment factor to avoid proportions of 0 or 1. Default =
+0.}
 
 \item{...}{Further arguments passed to optim within aod::betabin}
 }
@@ -49,7 +60,7 @@ lins[is.na(lins)] <- 0
 colnames(circs) <- sub("_.*", "", colnames(circs))
 colnames(lins) <- sub("_.*", "", colnames(lins))
 
-batch1_data <- 
+batch1_data <-
   data.table::fread("/sharedfs01/enrico/CLL/analysis/R_CLL/data/CLL_meta_short.csv")
 batch2_data <-
   data.table::fread("/sharedfs01/enrico/CLL/analysis/R_CLL/data/PRJNA432966_meta.csv")
@@ -83,12 +94,12 @@ ggplot(df, aes(x = PC1, y = PC2, color = COND_TRANS, shape = Batch)) +
   ggtitle("original")
 
 ## MDS
-# ggplot(cbind(cmdscale(dist(t(prps)))[rownames(meta_df), ], meta_df), 
+# ggplot(cbind(cmdscale(dist(t(prps)))[rownames(meta_df), ], meta_df),
 #        aes(x = `1`, y = `2`, color = COND_TRANS, shape = Batch)) +
 #   geom_point(size = 3)
 
 # PCA logit scale data ####
-pcs <- prcomp(t(car::logit(prps, percents = F, adjust = 1e-6)), 
+pcs <- prcomp(t(car::logit(prps, percents = F, adjust = 1e-6)),
               center = T, scale. = T)
 df <- cbind(meta_df, pcs$x[rownames(meta_df), ])
 
@@ -97,10 +108,10 @@ ggplot(df, aes(x = PC1, y = PC2, color = COND_TRANS, shape = Batch)) +
   ggtitle("original - logit scale")
 
 # remove batch betabin ####
-rbe <- remove_batch_effect_betabin(x = x[rownames(prps), ], 
-                                   y = y[rownames(prps), ], 
+rbe <- remove_batch_effect_betabin(x = x[rownames(prps), ],
+                                   y = y[rownames(prps), ],
                                    groups = meta_df,
-                                   batch = "Batch", 
+                                   batch = "Batch",
                                    design = "~COND_TRANS")
 # summary(rbe)
 rbe[is.na(rbe)] <- 0
