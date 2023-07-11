@@ -11,6 +11,7 @@ remove_batch_effect_betabin(
   batch = NULL,
   design = "~ 1",
   lg_adjust = 0,
+  BPPARAM = bpparam(),
   ...
 )
 }
@@ -31,6 +32,8 @@ to be kept}
 
 \item{lg_adjust}{adjustment factor to avoid proportions of 0 or 1. Default =
 0.}
+
+\item{BPPARAM}{BiocParallelParam parallel back-end.}
 
 \item{...}{Further arguments passed to optim within aod::betabin}
 }
