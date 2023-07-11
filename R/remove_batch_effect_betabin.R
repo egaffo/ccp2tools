@@ -16,9 +16,10 @@
 #'   effect vriables
 #' @param lg_adjust adjustment factor to avoid proportions of 0 or 1. Default =
 #'   0.
+#' @param BPPARAM BiocParallelParam parallel back-end.
 #' @param ... Further arguments passed to optim within aod::betabin
 #'
-#' @import aod boot car data.table stats
+#' @import aod boot car data.table stats BiocParallel
 #' @export
 #'
 #' @seealso limma::removeBatchEffect()
@@ -177,6 +178,7 @@ remove_batch_effect_betabin <-
            batch = NULL,
            design = "~ 1",
            lg_adjust = 0,
+           BPPARAM = bpparam(),
            ...) {
     
     data <- 
@@ -230,12 +232,13 @@ remove_batch_effect_betabin <-
                          sep = "+")
     full_formula <- as.formula(paste0("cbind(x, n - x) ~ ", full_design))
     
-    fit <- lapply(X = split(x = data, f = data$ids), 
-                  FUN = function(d, formula) {
-                    aod::betabin(formula = formula, random = ~1,
-                                 data = d, ...)
-                  },
-                  formula = full_formula)
+    fit <- BiocParallel::bplapply(X = split(x = data, f = data$ids), 
+                                  FUN = function(d, formula) {
+                                    aod::betabin(formula = formula, random = ~1,
+                                                 data = d, ...)
+                                  },
+                                  formula = full_formula,
+                                  BPPARAM = BPPARAM)
     
     design_modmat <- as.matrix(stats::model.matrix(object = as.formula(design),
                                                    data = groups))
