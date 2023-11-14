@@ -24,7 +24,7 @@ compute_lin_bks_counts(
 \item{cpus}{number of CPUs for parallel execution (default: 1)}
 }
 \value{
-a matrix with circRNAs as rows and samples as columns and counts in 
+a matrix with circRNAs as rows and samples as columns and counts in
 the cells
 }
 \description{

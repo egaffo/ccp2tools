@@ -7,12 +7,10 @@
 merge_lin_counts(prj_paths, ...)
 }
 \arguments{
-\item{prj_paths}{}
-
 \item{...}{additional parameters used in tximport::tximport()}
 }
 \value{
-a named list of two elements: 
+a named list of two elements:
  1) txi: a tximport object at transcript level
  2) tx2gene: the transcript/gene ids table used in the txi object
 }
@@ -29,7 +27,7 @@ trx_ls <- merge_lin_counts(prjs)
 
 trx <- trx_ls$txi
 
-## get the linear gene expression#' 
+## get the linear gene expression#'
 gnx <- tximport::summarizeToGene(trx_ls$txi, trx_ls$tx2gene)
 }
 }

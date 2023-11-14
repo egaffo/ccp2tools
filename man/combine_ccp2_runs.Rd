@@ -83,40 +83,43 @@ spliced read counts by parsing the linear alignment files.
 }
 \examples{
 \dontrun{
-prjs <- c("/home/user/circompara2_batch1",
-           "/home/user/circompara2_batch2")
-           
-## merge the projects           
+prjs <- c("/home/user/circompara2/samples_batch1",
+           "/home/user/circompara2/samples_batch2")
+
+## merge the projects
 combined_prjs <- combine_ccp2_runs(prjs)
 
+## read preprocessing and mapping statistics table
+read_stats <- combined_prjs$read_stats
+
 ## circRNA BJR matrix
-circrna_raw_counts <- 
-  data.frame(combined_prjs$circ_read_count_mt, 
+circrna_raw_counts <-
+  data.frame(combined_prjs$circ_read_count_mt,
              row.names = "circ_id")
-             
+
 ## compute the circular to linear expression proportions (a.k.a. CLPs)
-clps <- 
-  data.table::dcast(merge(data.table::melt(combined_prjs$circ_read_count_mt, 
-                                           id.vars = "circ_id", 
-                                           variable.name = "sample_id", 
+clps <-
+  data.table::dcast(merge(data.table::melt(combined_prjs$circ_read_count_mt,
+                                           id.vars = "circ_id",
+                                           variable.name = "sample_id",
                                            value.name = "BJR"),
-                          data.table::melt(combined_prjs$lin_read_count_mt, 
-                                           id.vars = "circ_id", 
-                                           variable.name = "sample_id", 
+                          data.table::melt(combined_prjs$lin_read_count_mt,
+                                           id.vars = "circ_id",
+                                           variable.name = "sample_id",
                                            value.name = "lin.reads"),
-                           by = c("sample_id", 
+                           by = c("sample_id",
                                   "circ_id"))[, CLP := BJR/(BJR + lin.reads)],
                     formula = circ_id ~ sample_id, value.var = "CLP")
 
 ## get circRNA host-gene(s)
-circrna_hosts <- 
-  unique(combined_prjs$circ_gene_anno[, .(circ_id, gene_id, 
-                                          gene_name)])[, lapply(.SD, 
-                                                        function(x){paste0(x, 
-                                                           collapse = "|")}), 
+circrna_hosts <-
+  unique(combined_prjs$circ_gene_anno[, .(circ_id, gene_id,
+                                          gene_name)])[, lapply(.SD,
+                                                        function(x){paste0(x,
+                                                           collapse = "|")}),
                                                        by = circ_id]
 ## prepare for differential gene expression analysis with DESeq2
-gnx <- tximport::summarizeToGene(combined_prjs$lin_xpr$txi, 
+gnx <- tximport::summarizeToGene(combined_prjs$lin_xpr$txi,
                                  combined_prjs$lin_xpr$tx2gene)
 sampleTable <- data.frame(sample_id = colnames(combined_prjs$lin_xpr$txi$counts))
 dds <- DESeq2::DESeqDataSetFromTximport(gnx, sampleTable, ~1)

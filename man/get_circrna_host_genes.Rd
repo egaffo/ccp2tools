@@ -7,13 +7,13 @@
 get_circrna_host_genes(circ_ids, gtf_file)
 }
 \arguments{
-\item{circ_ids}{a list of circRNA identifiers in the form of 
+\item{circ_ids}{a list of circRNA identifiers in the form of
 chr:start-end[:strand]}
 
 \item{gtf_file}{an Ensemble GTF gene annotation file}
 }
 \value{
-a data.table of the genes overlapping each circRNA, one row for each 
+a data.table of the genes overlapping each circRNA, one row for each
 overlap.
 }
 \description{
@@ -21,6 +21,6 @@ Find circRNA host-gene(s)
 }
 \examples{
 \dontrun{
-get_circrna_host_genes("10:1000676-1000868:+", 
-                       "Homo_sapiens.GRCh38.108.gtf")} 
+get_circrna_host_genes("10:1000676-1000868:+",
+                       "Homo_sapiens.GRCh38.108.gtf")}
 }

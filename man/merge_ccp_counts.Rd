@@ -7,29 +7,29 @@
 merge_ccp_counts(files)
 }
 \arguments{
-\item{files}{the path of a CirComPara2 run, or a text file listing the paths 
+\item{files}{the path of a CirComPara2 run, or a text file listing the paths
 of multiple CirComPara2 run to merge.}
 
-\item{is_list_file}{set TRUE if "files" is a text file listing the projects 
+\item{is_list_file}{set TRUE if "files" is a text file listing the projects
 to merge}
 }
 \value{
-a data.table with the following columns: 
+a data.table with the following columns:
 "sample_id"
 "chr", "start", "end", "strand"
 "read.count": the BJR count
-"n_methods": the number of the circRNA-detection tools that commonly 
+"n_methods": the number of the circRNA-detection tools that commonly
 identified the circRNA
-"circ_methods": the names of the circRNA-detection tools that commonly 
-identified the circRNA in a bar-separated list alphanumerically sorted. 
+"circ_methods": the names of the circRNA-detection tools that commonly
+identified the circRNA in a bar-separated list alphanumerically sorted.
 E.g: "CIRCexplorer2_bwa|ciri_out|dcc"
 "circ_id": the circRNA identifier composed as chr:start-end[:strand]
-"strand_pattern": a string representing the number of reads and methods 
+"strand_pattern": a string representing the number of reads and methods
 according to their strand(s). See also \link[ccp2tools]{guess_strand}.
 }
 \description{
-Compute the backsplice junction read (BJR) counts according to the 
-CirComPara2's framework.  
-This function collect the results of one or more CirComPara2 runs and merges 
+Compute the backsplice junction read (BJR) counts according to the
+CirComPara2's framework.
+This function collect the results of one or more CirComPara2 runs and merges
 the results.
 }

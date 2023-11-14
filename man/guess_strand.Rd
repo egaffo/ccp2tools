@@ -7,10 +7,10 @@
 guess_strand(strand_pattern, circ_methods = NULL)
 }
 \arguments{
-\item{strand_pattern}{a character in the form of 
+\item{strand_pattern}{a character in the form of
 "strand_reads_nMethods|strand_reads_nMethods". E.g. "+_30_6|-_26_1"}
 
-\item{circ_methods}{(optional) the methods corresponding to the strand 
+\item{circ_methods}{(optional) the methods corresponding to the strand
 pattern, separated by an "@" character. It helps to solve some ambiguities.
 E.g: "CIRCexplorer2_bwa|CIRCexplorer2_star|CIRCexplorer2_tophat@dcc"}
 }
