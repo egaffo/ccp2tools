@@ -414,6 +414,7 @@ compute_lin_bks_counts <- function(files,
 #'
 #' @examples
 merge_lin_bks_counts <- function(files, groups = NULL) {
+
   ## find the ccp_bks_linexp.csv files
   ccp_bks_linexp_files <-
     unlist(sapply(files,
@@ -440,6 +441,20 @@ merge_lin_bks_counts <- function(files, groups = NULL) {
                                  data.table::fread,
                                  simplify = FALSE),
                           use.names = TRUE)
+
+  if(!is.null(groups)){
+
+    ## sum up read counts from the sample splits
+    ccp_bks_linexp <-
+      data.table::merge.data.table(
+        data.table::data.table(sample_id = groups[, 1], Chunk = rownames(groups)),
+        data.table::copy(ccp_bks_linexp)[, Chunk := sample_id][, sample_id := NULL][],
+        by = "Chunk"
+      )[, .(lin.reads = sum(lin.reads)),
+        by = .(sample_id, circ_id)]
+
+    message("The backsplice-linearly-spliced read counts of sample splits have been merged")
+  }
 
   ## return a matrix
   data.table::dcast(
@@ -791,6 +806,7 @@ combine_ccp2_runs <-
 
 
     ## -------- merge the linearly spliced reads on the BJ -------- ##
+
     lin_bks_counts <- NA
     if (merge_lin_bks) {
       ## merge also the linear counts
@@ -871,6 +887,7 @@ combine_ccp2_runs <-
     }
 
     ## -------- merge the linear transcript/gene read counts -------- ##
+    # TODO: merge sample splits
     lin_xpr <- NA
     if (merge_lin) {
       lin_xpr <- merge_lin_counts(files, groups = groups, ...)
