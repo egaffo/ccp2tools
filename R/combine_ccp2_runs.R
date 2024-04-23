@@ -139,6 +139,7 @@ guess_strand <- function(strand_pattern, circ_methods = NULL) {
 #'
 #' @examples
 merge_ccp_counts <- function(files, groups = NULL) {
+
   ccp_count_files <-
     sapply(files, function(f) {
       ifelse(
@@ -162,6 +163,30 @@ merge_ccp_counts <- function(files, groups = NULL) {
                                              simplify = FALSE),
                                       use.names = TRUE)
 
+  ## merge sample chunks
+  if(!is.null(groups)){
+
+    message("Merging counts from sample splits...")
+
+    ## sum up read counts from the sample splits
+    ccp_counts <-
+      data.table::merge.data.table(
+        data.table::data.table(sample_id = groups[, 1], Chunk = rownames(groups)),
+        data.table::copy(ccp_counts)[, Chunk := sample_id][, sample_id := NULL][],
+        by = "Chunk"
+      )[, .(read.count = sum(read.count),
+            Methods = list(sort(unique(unlist(strsplit(circ_methods, "|",
+                                                       fixed = T)))))),
+        by = .(sample_id, chr, start, end,
+               strand)][, `:=`(n_methods = length(unlist(Methods)),
+                               circ_methods = paste0(unlist(Methods),
+                                                     collapse = "|")),
+                        by = .(sample_id, chr, start, end,
+                               strand)][, Methods := NULL][]
+
+    message("Merged counts from sample splits")
+  }
+
   ccp_counts[, circ_id := paste0(chr, ":", start, "-", end)]
 
   ## check strandedness inconsistencies and fix
@@ -181,6 +206,7 @@ merge_ccp_counts <- function(files, groups = NULL) {
     )
 
     message("Trying to fix ambiguous strand circRNAs...")
+
     circ_reads <-
       data.table::rbindlist(sapply(
         file.path(
@@ -195,6 +221,16 @@ merge_ccp_counts <- function(files, groups = NULL) {
          by = .(chr, start,
                 end)][circ_id %in%
                         ambig_strnd_candidates]
+
+    if(!is.null(groups)){
+      ## merge sample chunks
+      circ_reads <-
+        data.table::merge.data.table(
+          data.table::data.table(sample_id = groups[, 1], Chunk = rownames(groups)),
+          circ_reads[, Chunk := sample_id][, sample_id := NULL],
+          by = "Chunk"
+        )[, Chunk := NULL][]
+    }
 
     ## count read fragments irrespective of the alignment strand
     uns_frags_count <-
