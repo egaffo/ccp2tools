@@ -4,7 +4,7 @@
 \alias{merge_lin_counts}
 \title{Merge multiple CirComPara2 runs to get linear transcript/gene expression}
 \usage{
-merge_lin_counts(prj_paths, ...)
+merge_lin_counts(prj_paths, groups = NULL, ...)
 }
 \arguments{
 \item{...}{additional parameters used in tximport::tximport()}

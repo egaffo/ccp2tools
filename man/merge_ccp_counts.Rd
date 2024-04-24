@@ -4,7 +4,7 @@
 \alias{merge_ccp_counts}
 \title{Get circRNA BJR count expression matrix}
 \usage{
-merge_ccp_counts(files)
+merge_ccp_counts(files, groups = NULL)
 }
 \arguments{
 \item{files}{the path of a CirComPara2 run, or a text file listing the paths
