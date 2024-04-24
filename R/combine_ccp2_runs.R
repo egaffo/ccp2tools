@@ -469,20 +469,20 @@ merge_lin_bks_counts <- function(files, groups = NULL) {
 #'
 #' @param circ_ids a list of circRNA identifiers in the form of
 #' chr:start-end[:strand]
-#' @param gtf_file an Ensemble GTF gene annotation file
+#' @param gtf_gr a GenomicRanges object obtained from the Ensemble GTF gene
+#'   annotation file (hint: use the rtracklayer::import() function)
 #'
 #' @return a data.table of the genes overlapping each circRNA, one row for each
 #' overlap.
 #'
 #' @import GenomicRanges
-#' @importFrom rtracklayer import
 #' @export
 #'
 #' @examples
 #' \dontrun{
 #' get_circrna_host_genes("10:1000676-1000868:+",
-#'                        "Homo_sapiens.GRCh38.108.gtf")}
-get_circrna_host_genes <- function(circ_ids, gtf_file) {
+#'                        rtracklayer::import("Homo_sapiens.GRCh38.108.gtf"))}
+get_circrna_host_genes <- function(circ_ids, gtf_gr) {
   circ_dt <-
     data.table::data.table(circ_id = circ_ids)[, data.table::tstrsplit(circ_id,
                                                                        ":|-"),
@@ -509,9 +509,6 @@ get_circrna_host_genes <- function(circ_ids, gtf_file) {
       ignore.strand = !stranded,
       starts.in.df.are.0based = TRUE
     )
-
-  message("Importing gene annotations from ", gtf_file)
-  gtf_gr <- rtracklayer::import(gtf_file)
 
   message("Finding host-gene for ", length(circ_ids), " circRNAs...")
   hits <- GenomicRanges::findOverlaps(
@@ -720,15 +717,19 @@ merge_lin_counts <- function(prj_paths, groups = NULL, ...) {
 #'   one column that determines the grouping (f.i., the specimen)
 #' @param ... additional parameters that will be passed to the tximport function
 #'   for linear gene expression
-#' @return a list of four elements: (1) \code{circ_read_count_mt}: the matrix of
+#' @return a list of six elements: (1) \code{circ_read_count_mt}: the matrix of
 #'   the merged samples'backspliced read counts, \code{merge_circs = TRUE},
 #'   \code{NA} otherwise; (2) \code{lin_read_count_mt}: the matrix of the merged
 #'   samples' backsplice linear read counts if \code{merge_lin_bks = TRUE},
 #'   \code{NA} otherwise; (3) \code{circ_gene_anno}: the circRNA host-gene
 #'   annotation; and (4) \code{lin_xpr}: a list of two elements, namely the
 #'   linear transcript expression as a \code{tximport} result and the associated
-#'   \code{tx2gene} data frame, if \code{merge_lin = TRUE}, \code{NA} otherwise.
-#' @import data.table Rsubread tximport
+#'   \code{tx2gene} data frame, if \code{merge_lin = TRUE}, \code{NA} otherwise;
+#'   \code{read_stats}: a data frame with the merged read count statistics;
+#'   \code{gene_anno}: the GenomicRanges representation of the gene annotation
+#'   GTF file.
+#' @import data.table Rsubread tximport GenomicRanges
+#' @importFrom rtracklayer import
 #' @export
 #'
 #' @examples \dontrun{
@@ -816,6 +817,34 @@ combine_ccp2_runs <-
     message("Merging read statistics...")
     read_stats <- merge_read_stats(files, groups = groups)
 
+    ## -------- parse annotation file -------- ##
+    if (!is.null(gtf_file)) {
+
+      gtf_gr <- NULL
+
+      if (gtf_file == "auto") {
+        gtf_file <-
+          gsub(" |\"|\'", "",
+               strsplit(grep(
+                 "ANNOTATION",
+                 grep("^#",
+                      readLines(file.path(files[1],
+                                          "vars.py")),
+                      invert = T,
+                      value = T),
+                 value = TRUE
+               ), "=")[[1]][2])
+        message("Using gene annotation from file ", gtf_file)
+      }
+      if(file.exists(gtf_file)) {
+        message("Importing gene annotations...")
+        gtf_gr <- rtracklayer::import(gtf_file)
+      }else{
+        warning("Annotation file ", gtf_file, " does not exists.")
+      }
+    }
+
+
     ## -------- merge backsplice junction read counts -------- ##
     ccp_counts_dt <- NA
     circ_gene_anno <- NA
@@ -853,25 +882,10 @@ combine_ccp2_runs <-
         )
 
       ## -------- compute circRNA host-gene annotation -------- ##
-      if (!is.null(gtf_file)) {
-        if (gtf_file == "auto") {
-          gtf_file <-
-            gsub(" |\"|\'", "",
-                 strsplit(grep(
-                   "ANNOTATION",
-                   grep("^#",
-                        readLines(file.path(files[1],
-                                            "vars.py")),
-                        invert = T,
-                        value = T),
-                   value = TRUE
-                 ), "=")[[1]][2])
-          message("Using gene annotation from file ", gtf_file)
-          # TODO: check file.exists(gtf_file)
-        }
+      if (!is.null(gtf_gr)) {
 
         circ_gene_anno <-
-          get_circrna_host_genes(reliable_circ_ids, gtf_file)
+          get_circrna_host_genes(reliable_circ_ids, gtf_gr)
       }
     }
 
@@ -971,7 +985,8 @@ combine_ccp2_runs <-
       lin_read_count_mt = lin_bks_counts,
       circ_gene_anno = circ_gene_anno,
       lin_xpr = lin_xpr,
-      read_stats = read_stats
+      read_stats = read_stats,
+      gene_anno = gtf_gr
     )
 
   }
