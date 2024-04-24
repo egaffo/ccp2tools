@@ -859,8 +859,11 @@ combine_ccp2_runs <-
             gsub(" |\"|\'", "",
                  strsplit(grep(
                    "ANNOTATION",
-                   readLines(file.path(files[1],
-                                       "vars.py")),
+                   grep("^#",
+                        readLines(file.path(files[1],
+                                            "vars.py")),
+                        invert = T,
+                        value = T),
                    value = TRUE
                  ), "=")[[1]][2])
           message("Using gene annotation from file ", gtf_file)
