@@ -29,7 +29,6 @@ according to their strand(s). See also \link[ccp2tools]{guess_strand}.
 }
 \description{
 Compute the backsplice junction read (BJR) counts according to the
-CirComPara2's framework.
-This function collect the results of one or more CirComPara2 runs and merges
-the results.
+CirComPara2's framework. This function collect the results of one or more
+CirComPara2 runs and merges the results.
 }

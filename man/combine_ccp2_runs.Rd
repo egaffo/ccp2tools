@@ -70,14 +70,17 @@ one column that determines the grouping (f.i., the specimen)}
 for linear gene expression}
 }
 \value{
-a list of four elements: (1) \code{circ_read_count_mt}: the matrix of
+a list of six elements: (1) \code{circ_read_count_mt}: the matrix of
   the merged samples'backspliced read counts, \code{merge_circs = TRUE},
   \code{NA} otherwise; (2) \code{lin_read_count_mt}: the matrix of the merged
   samples' backsplice linear read counts if \code{merge_lin_bks = TRUE},
   \code{NA} otherwise; (3) \code{circ_gene_anno}: the circRNA host-gene
   annotation; and (4) \code{lin_xpr}: a list of two elements, namely the
   linear transcript expression as a \code{tximport} result and the associated
-  \code{tx2gene} data frame, if \code{merge_lin = TRUE}, \code{NA} otherwise.
+  \code{tx2gene} data frame, if \code{merge_lin = TRUE}, \code{NA} otherwise;
+  \code{read_stats}: a data frame with the merged read count statistics;
+  \code{gene_anno}: the GenomicRanges representation of the gene annotation
+  GTF file.
 }
 \description{
 This function will merge the otputs of multiple CirComPara2 analyses into
@@ -116,7 +119,7 @@ clps <-
                                            variable.name = "sample_id",
                                            value.name = "lin.reads"),
                            by = c("sample_id",
-                                  "circ_id"))[, CLP := BJR/(BJR + lin.reads)],
+                                  "circ_id"))[, CLP := BJR/(BJR+lin.reads)],
                     formula = circ_id ~ sample_id, value.var = "CLP")
 
 ## get circRNA host-gene(s)
@@ -129,7 +132,8 @@ circrna_hosts <-
 ## prepare for differential gene expression analysis with DESeq2
 gnx <- tximport::summarizeToGene(combined_prjs$lin_xpr$txi,
                                  combined_prjs$lin_xpr$tx2gene)
-sampleTable <- data.frame(sample_id = colnames(combined_prjs$lin_xpr$txi$counts))
+sampleTable <-
+  data.frame(sample_id = colnames(combined_prjs$lin_xpr$txi$counts))
 dds <- DESeq2::DESeqDataSetFromTximport(gnx, sampleTable, ~1)
 
 ### Case 2. merge two samples that were split into two lanes

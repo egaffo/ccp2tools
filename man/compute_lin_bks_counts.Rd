@@ -25,7 +25,7 @@ compute_lin_bks_counts(
 }
 \value{
 a matrix with circRNAs as rows and samples as columns and counts in
-the cells
+  the cells
 }
 \description{
 Count the reads linearly spliced on the backsplice junctions
