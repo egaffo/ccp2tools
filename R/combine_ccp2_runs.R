@@ -554,7 +554,7 @@ get_circrna_host_genes <- function(circ_ids, gtf_file) {
 #' ## get the linear gene expression#'
 #' gnx <- tximport::summarizeToGene(trx_ls$txi, trx_ls$tx2gene)
 #' }
-merge_lin_counts <- function(prj_paths, ...) {
+merge_lin_counts <- function(prj_paths, groups = NULL, ...) {
   t_data_files <-
     unlist(sapply(prj_paths, function(f) {
       dir(
@@ -603,6 +603,74 @@ merge_lin_counts <- function(prj_paths, ...) {
     txOut = T,
     ...
   )
+
+  if (!is.null(groups)) {
+
+    groups <- data.table::data.table(sample_id = groups[, 1], Chunk = rownames(groups))
+
+    txi$abundance <-
+      as.matrix(data.frame(
+        data.table::dcast(
+          data = data.table::merge.data.table(
+            groups,
+            data.table::melt(
+              data.table::data.table(txi$abundance, keep.rownames = "trx_id"),
+              id.vars = c("trx_id"),
+              variable.name = "Chunk"
+            ),
+            by = "Chunk"
+          )[, .(value = sum(value)), by = .(sample_id, trx_id)],
+          formula = trx_id ~ sample_id,
+          value.var = "value"
+        ),
+        row.names = "trx_id"
+      ))
+
+    txi$counts <-
+      as.matrix(data.frame(
+        data.table::dcast(
+          data = data.table::merge.data.table(
+            groups,
+            data.table::melt(
+              data.table::data.table(txi$counts, keep.rownames = "trx_id"),
+              id.vars = c("trx_id"),
+              variable.name = "Chunk"
+            ),
+            by = "Chunk"
+          )[, .(value = sum(value)), by = .(sample_id, trx_id)],
+          formula = trx_id ~ sample_id,
+          value.var = "value"
+        ),
+        row.names = "trx_id"
+      ))
+
+    lengths_merged <-
+      data.table::merge.data.table(
+        groups,
+        data.table::melt(
+          data.table::data.table(txi$length, keep.rownames = "trx_id"),
+          id.vars = c("trx_id"),
+          variable.name = "Chunk"
+        ),
+        by = "Chunk"
+      )[, .(value = mean(value),
+            lengthDiffCheck = length(unique(value)) > 1),
+        by = .(sample_id, trx_id)]
+
+    if (any(lengths_merged$lengthDiffCheck)) {
+      warning("Some transcript lenghts differ between merged sample splits.")
+    }
+
+    txi$length <-
+      as.matrix(data.frame(
+        data.table::dcast(
+          data = lengths_merged,
+          formula = trx_id ~ sample_id,
+          value.var = "value"
+        ),
+        row.names = "trx_id"
+      ))
+  }
 
   list(txi = txi, tx2gene = tx2gene)
 }
@@ -882,12 +950,12 @@ combine_ccp2_runs <-
                                                  cpus)
 
         ## TODO: merge sample chunks
-        warning("Sample chunk merging not yet implemented")
+        warning("Sample splits merging not yet implemented")
       }
     }
 
     ## -------- merge the linear transcript/gene read counts -------- ##
-    # TODO: merge sample splits
+
     lin_xpr <- NA
     if (merge_lin) {
       lin_xpr <- merge_lin_counts(files, groups = groups, ...)
