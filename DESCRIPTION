@@ -1,7 +1,7 @@
 Package: ccp2tools
 Type: Package
 Title: Utility functions for CirComPara2 and circRNA RNA-seq data analysis
-Version: 0.1.0
+Version: 0.1.1-9000
 Author: Enrico Gaffo
 Maintainer: Enrico Gaffo <enrico.gaffo@gmail.com>
 Description: Utility functions for CirComPara2 (https://github.com/egaffo/circompara2).
