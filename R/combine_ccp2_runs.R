@@ -417,7 +417,7 @@ compute_lin_bks_counts <- function(files,
 #' @export
 #'
 #' @examples
-merge_lin_bks_counts <- function(files, groups = NULL) {
+merge_lin_bks_counts <- function(files, groups = NULL, ...) {
   ## find the ccp_bks_linexp.csv files
   ccp_bks_linexp_files <-
     unlist(sapply(files,
@@ -461,13 +461,37 @@ merge_lin_bks_counts <- function(files, groups = NULL) {
             "have been merged")
   }
 
-  ## return a matrix
-  data.table::dcast(
-    data = ccp_bks_linexp,
-    formula = circ_id ~ sample_id,
-    value.var = "lin.reads",
-    fill = NA
-  )
+  ## to return a matrix, if we use dcast, the code will break for very large
+  ## data sets as it occurs into an integer overflow error.
+
+  ## determine the whole set of circ_ids and samples
+  circ_ids <- unique(ccp_bks_linexp$circ_id)
+  samples <- unique(ccp_bks_linexp$sample_id)
+
+  ## N.B.: (1) use double-precision floating-point numbers ('numeric')
+  ## to avoid integer overflow when dealing with large data sets;
+  ## (2) preallocate memory for the matrix as, in R, it is more efficient than
+  ## growing the matrix
+  ## TODO: use a sparse matrix object? See function sparsify() form
+  ## the mltools package
+  mat <-
+    matrix(data = rep(NA,
+                      times = as.numeric(length(circ_ids)) * as.numeric(length(samples))),
+           nrow = length(circ_ids))
+  rownames(mat) <- circ_ids
+  colnames(mat) <- samples
+
+  ## populate the matrix
+  for(i in 1:length(samples)){
+
+    mat[ccp_bks_linexp[sample_id == samples[i], circ_id], i] <-
+      ccp_bks_linexp[sample_id == samples[i], lin.reads]
+
+  }
+
+  ## transform into a data.table object for retro-compatibility
+  as.data.table(mat, keep.rownames = "circ_id")
+
 }
 
 #' Find circRNA host-gene(s)
