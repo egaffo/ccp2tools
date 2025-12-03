@@ -44,6 +44,8 @@ renv::install("egaffo/ccp2tools")
 
 -   [combine_ccp2_runs()](#combine_ccp2_runs): Import and merge multiple
     CirComPara2 projects.
+-   [to_summarized_experiment()](#to_summarized_experiment): Extract
+    expression estimates and into a SummarizedExperiment object.
 
 ## Quick Start
 
@@ -71,4 +73,29 @@ For more details:
 
 ``` r
 ?combine_ccp2_runs
+```
+
+### to_summarized_experiment {#to_summarized_experiment}
+
+*to_summarized_experiment()* allows the extraction of the cirRNA, gene,
+or transcript expression estimates from the result of calling the
+`combine_ccp2_runs` function, returning a `SummarizedExperiment` object
+for downstream analysis.
+
+#### Basic usage:
+
+``` r
+library(ccp2tools)
+prjs <- c("/home/user/circompara2/samples_batch1",
+           "/home/user/circompara2/samples_batch2")
+
+combined_prjs <- combine_ccp2_runs(prjs)
+
+circ_se <- to_summarized_experiment(combined_prjs)
+```
+
+For more details:
+
+``` r
+?to_summarized_experiment
 ```
