@@ -4,7 +4,7 @@
 \alias{merge_lin_bks_counts}
 \title{Merge the counts of the reads linearly spliced on the backsplice junctions}
 \usage{
-merge_lin_bks_counts(files, groups = NULL)
+merge_lin_bks_counts(files, groups = NULL, ...)
 }
 \arguments{
 \item{files}{the paths of CirComPara2 runs to merge.}
