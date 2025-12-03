@@ -1,7 +1,7 @@
 #' Convert the result of combine_ccp2_runs() into a SummarizedExperiment object
 #'
 #' @param combined_prjs a named list, as resulting from the
-#'  \link{combine_ccp2_runs()} function. Must include the following entries:
+#'  \link[combine_ccp2_runs]{ccp2tools::combine_ccp2_runs()} function. Must include the following entries:
 #'  circ_read_count_mt, lin_read_count_mt, circ_gene_anno, lin_xpr, read_stats,
 #'  gene_anno.
 #' @param assays select which RNA assay to extract among "circrna", "gene", or
@@ -9,6 +9,9 @@
 #'
 #' @returns a \link{SummarizedExperiment} object for circrna assay; a
 #'  \link{RangedSummarizedExperiment} if gene or transcript assay
+#'
+#' @import data.table tximport GenomicRanges SummarizedExperiment
+#'
 #' @export
 #'
 #' @examples \dontrun{
@@ -29,8 +32,9 @@
 #'                                     assay = "trx")
 #' }
 #'
-to_summarized_experiment <- function(combined_prjs,
-                                     assay = c("circrna", "gene", "trx")) {
+to_summarized_experiment <-
+  function(combined_prjs,
+           assay = c("circrna", "gene", "trx")) {
 
   assay <- match.arg(assay)
 
