@@ -11,16 +11,17 @@ Encoding: UTF-8
 LazyData: true
 biocViews:
 Imports:
-    car, 
-    boot, 
-    stats, 
-    data.table, 
-    R.utils, 
+    car,
+    boot,
+    stats,
+    data.table,
+    R.utils,
     bedr,
     Rsubread,
     tximport,
     GenomicRanges,
     rtracklayer,
     BiocParallel,
-    aod
-RoxygenNote: 7.3.1
+    aod,
+    SummarizedExperiment
+RoxygenNote: 7.3.3
