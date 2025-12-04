@@ -5,7 +5,7 @@
    viewBox="0 0 105.37356 50.786484"
    version="1.1"
    id="svg4"
-   sodipodi:docname="ccp2tools_logo.svg"
+   sodipodi:docname="logo.svg"
    inkscape:version="1.4.2 (1:1.4.2+202505120738+ebf0e940d0)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -23,7 +23,7 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="6.1942554"
-     inkscape:cx="0.80719952"
+     inkscape:cx="69.580599"
      inkscape:cy="18.242709"
      inkscape:window-width="2048"
      inkscape:window-height="1115"
@@ -31,52 +31,57 @@
      inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg4" />
-  <!-- Sfondo trasparente -->
-  <rect
-     width="100%"
-     height="100%"
-     fill="none"
-     id="rect1"
-     x="-84.113869"
-     y="-34.519287" />
-  <!-- Due C innestate -->
+  <g
+     id="g1-3"
+     transform="matrix(1.0288238,0,0,1.0245696,-0.84981789,-0.6239025)"
+     style="fill:#000000">
+    <text
+       x="-2.0819092"
+       y="50.265869"
+       font-family="Arial"
+       font-size="72px"
+       font-weight="bold"
+       fill="#2ecc71"
+       id="text1-5"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#000000">C</text>
+    <text
+       x="8.5583267"
+       y="34.109749"
+       font-family="Arial"
+       font-size="57.0789px"
+       font-weight="bold"
+       fill="#2ecc71"
+       id="text2-6"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#000000;stroke-width:0.792764">C</text>
+    <text
+       x="31.610283"
+       y="42.976746"
+       font-family="Arial"
+       font-size="37.8842px"
+       font-weight="bold"
+       fill="#2ecc71"
+       id="text3-2"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#000000;stroke-width:0.526167">p</text>
+    <text
+       x="43.534111"
+       y="27.452154"
+       font-family="Arial"
+       font-size="18.9329px"
+       fill="#000000"
+       id="text4-9"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#000000;stroke-width:0.394435">2</text>
+  </g>
   <text
-     x="-2.0819092"
-     y="50.265869"
+     x="55.885109"
+     y="33.986523"
      font-family="Arial"
-     font-size="72px"
-     font-weight="bold"
-     fill="#2ecc71"
-     id="text1"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#008033">C</text>
-  <text
-     x="8.5583267"
-     y="34.109749"
-     font-family="Arial"
-     font-size="57.0789px"
-     font-weight="bold"
-     fill="#2ecc71"
-     id="text2"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#d4aa00;stroke-width:0.792764">C</text>
-  <!-- Lettera p al centro -->
-  <text
-     x="31.610283"
-     y="42.976746"
-     font-family="Arial"
-     font-size="37.8842px"
-     font-weight="bold"
-     fill="#2ecc71"
-     id="text3"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#a02c2c;stroke-width:0.526167">p</text>
-  <!-- Testo "2 tools" a fianco -->
-  <text
-     x="43.534111"
-     y="27.452154"
-     font-family="Arial"
-     font-size="18.9329px"
+     font-size="30.762px"
      fill="#000000"
-     id="text4"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#2c5aa0;stroke-width:0.394435">2</text>
+     id="text4-6-6"
+     style="fill:#000000;stroke-width:0.640873"
+     transform="scale(0.97797079,1.0225254)"><tspan
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramaraja;-inkscape-font-specification:Ramaraja;fill:#000000;stroke-width:0.640873"
+       id="tspan4-7">tools</tspan></text>
   <text
      x="55.359825"
      y="34.221458"
@@ -84,7 +89,49 @@
      font-size="29.1683px"
      fill="#000000"
      id="text4-6"
-     style="stroke-width:0.607673"><tspan
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramaraja;-inkscape-font-specification:Ramaraja"
+     style="stroke-width:0.607673;fill:#aa00d4"><tspan
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramaraja;-inkscape-font-specification:Ramaraja;fill:#aa00d4"
        id="tspan4">tools</tspan></text>
+  <!-- Sfondo trasparente -->
+  <!-- Due C innestate -->
+  <!-- Lettera p al centro -->
+  <!-- Testo "2 tools" a fianco -->
+  <g
+     id="g1">
+    <text
+       x="-2.0819092"
+       y="50.265869"
+       font-family="Arial"
+       font-size="72px"
+       font-weight="bold"
+       fill="#2ecc71"
+       id="text1"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#008033">C</text>
+    <text
+       x="8.5583267"
+       y="34.109749"
+       font-family="Arial"
+       font-size="57.0789px"
+       font-weight="bold"
+       fill="#2ecc71"
+       id="text2"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#d4aa00;stroke-width:0.792764">C</text>
+    <text
+       x="31.610283"
+       y="42.976746"
+       font-family="Arial"
+       font-size="37.8842px"
+       font-weight="bold"
+       fill="#2ecc71"
+       id="text3"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#a02c2c;stroke-width:0.526167">p</text>
+    <text
+       x="43.534111"
+       y="27.452154"
+       font-family="Arial"
+       font-size="18.9329px"
+       fill="#000000"
+       id="text4"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Ramabhadra;-inkscape-font-specification:Ramabhadra;fill:#2c5aa0;stroke-width:0.394435">2</text>
+  </g>
 </svg>
