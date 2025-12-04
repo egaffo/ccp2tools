@@ -1,16 +1,21 @@
 #' Convert the result of [combine_ccp2_runs] into a SummarizedExperiment object
-#'
-#' @param combined_prjs a named list, as resulting from the
-#'  [combine_ccp2_runs] function. Must include the following entries:
-#'  circ_read_count_mt, lin_read_count_mt, circ_gene_anno, lin_xpr, read_stats,
-#'  gene_anno.
+#' @param combined_prjs
+#' A named list, as returned by the [combine_ccp2_runs] function.
+#' Must include the following entries:
+#' \itemize{
+#'   \item \code{circ_read_count_mt}
+#'   \item \code{lin_read_count_mt}
+#'   \item \code{circ_gene_anno}
+#'   \item \code{lin_xpr}
+#'   \item \code{read_stats}
+#'   \item \code{gene_anno}
+#' }
 #' @param assay select which RNA assay to extract among "circrna", "gene", or
 #'  "trx" for circrna-, gene-, or transcript-level expression analysis.
 #' @param coldata a data.frame with additional sample data to include into the
-#'  SummarizedExperiment
+#'  \link{SummarizedExperiment}
 #'
-#' @returns a \link{SummarizedExperiment} object for circrna assay; a
-#'  \link{RangedSummarizedExperiment} if gene or transcript assay
+#' @returns a \link{RangedSummarizedExperiment} object
 #'
 #' @import data.table tximport GenomicRanges SummarizedExperiment
 #'
@@ -46,7 +51,8 @@ to_summarized_experiment <-
 
     # ---- circRNA-level ----
     if (assay == "circrna") {
-      ## get one annotation line per circRNA id
+      ## gene annotation for the circRNAs
+      ## get one gene annotation line per circRNA id
       circrna_hosts <-
         unique(combined_prjs$circ_gene_anno[, .(circ_id, gene_id, gene_name)])[, lapply(.SD, function(x) {
           paste0(x, collapse = "|")
@@ -76,15 +82,13 @@ to_summarized_experiment <-
         check.names = F
       )
 
-      ## gene annotation for the circRNAs
-      gene_metadata <- data.frame(circrna_hosts,
-                                  row.names = "circ_id",
-                                  check.names = F)
-
       se <- SummarizedExperiment::SummarizedExperiment(
         assays = list(counts = count_data, linCounts = lin_count_data),
         colData = sample_metadata,
-        rowData = gene_metadata
+        # rowData = gene_metadata
+        metadata = list(circrna_host_gene = circrna_hosts,
+                        circ_gene_anno = combined_prjs$circ_gene_anno),
+        rowRanges = GRanges(rownames(count_data))
       )
     }
 

@@ -11,20 +11,25 @@ to_summarized_experiment(
 )
 }
 \arguments{
-\item{combined_prjs}{a named list, as resulting from the
-\link{combine_ccp2_runs} function. Must include the following entries:
-circ_read_count_mt, lin_read_count_mt, circ_gene_anno, lin_xpr, read_stats,
-gene_anno.}
+\item{combined_prjs}{A named list, as returned by the \link{combine_ccp2_runs} function.
+Must include the following entries:
+\itemize{
+\item \code{circ_read_count_mt}
+\item \code{lin_read_count_mt}
+\item \code{circ_gene_anno}
+\item \code{lin_xpr}
+\item \code{read_stats}
+\item \code{gene_anno}
+}}
 
 \item{assay}{select which RNA assay to extract among "circrna", "gene", or
 "trx" for circrna-, gene-, or transcript-level expression analysis.}
 
 \item{coldata}{a data.frame with additional sample data to include into the
-SummarizedExperiment}
+\link{SummarizedExperiment}}
 }
 \value{
-a \link{SummarizedExperiment} object for circrna assay; a
-\link{RangedSummarizedExperiment} if gene or transcript assay
+a \link{RangedSummarizedExperiment} object
 }
 \description{
 Convert the result of \link{combine_ccp2_runs} into a SummarizedExperiment object
