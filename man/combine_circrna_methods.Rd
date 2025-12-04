@@ -15,14 +15,14 @@ combine_circrna_methods(
 \item{file_names}{a names list of the file names to be combined}
 
 \item{filter}{if TRUE performs a filtering on the circRNAs included in the
-results: only circRNAs with >= _min\_reads_ and detected by >= _min\_methods_
-will be included}
+results: only circRNAs with >= \code{min_reads} and detected by >=
+\code{min_methods} will be included}
 
 \item{min_reads}{the minimum read count a circRNA must have to be included in
-the results when the _filter_ option is enabled}
+the results when the \code{filter} option is enabled}
 
 \item{min_methods}{the minimum number of methods a circRNA must be detected
-by to be included in the results when the _filter_ option is enabled}
+by to be included in the results when the \code{filter} option is enabled}
 }
 \description{
 Combine outputs of different circRNA detection tools

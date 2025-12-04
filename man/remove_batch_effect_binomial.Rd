@@ -13,20 +13,12 @@ remove_batch_effect_binomial(
 )
 }
 \arguments{
-\item{x}{}
-
-\item{batch}{}
-
-\item{covariates}{}
-
-\item{design}{}
-
 \item{...}{}
 }
 \description{
 A function to remove batch effects from a matrix of proportion
 values. Like the homonymous function from the limma package but for values in
-the range [0..1]. Useful to correct batch effects from CLP matrices.
+between 0 and 1 . Useful to correct batch effects from CLP matrices.
 }
 \author{
 Enrico Gaffo

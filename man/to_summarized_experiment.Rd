@@ -7,7 +7,6 @@
 to_summarized_experiment(
   combined_prjs,
   assay = c("circrna", "gene", "trx"),
-  metadata = NULL,
   coldata = NULL
 )
 }
@@ -19,9 +18,6 @@ gene_anno.}
 
 \item{assay}{select which RNA assay to extract among "circrna", "gene", or
 "trx" for circrna-, gene-, or transcript-level expression analysis.}
-
-\item{metadata}{a data.frame with additional metadata to include into the
-SummarizedExperiment. Rownames must match sample names.}
 
 \item{coldata}{a data.frame with additional sample data to include into the
 SummarizedExperiment}

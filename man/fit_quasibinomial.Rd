@@ -12,11 +12,11 @@ fit_quasibinomial(id, x, mod)
 \item{x}{a numeric matrix}
 
 \item{mod}{a matrix representing the model to fit. For instance, as returned
-by the model.matrix() function}
+by the \code{\link[=model.matrix]{model.matrix()}} function}
 }
 \value{
 an object of class inheriting from "glm", as the output of the
-  glm.fit() function
+\code{\link[=glm.fit]{glm.fit()}} function
 }
 \description{
 Auxiliary function to fit a Generalized Linear Model of the quasibinomial

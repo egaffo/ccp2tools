@@ -7,13 +7,13 @@
 #' @param id an identifier to select the matrix row
 #' @param x a numeric matrix
 #' @param mod a matrix representing the model to fit. For instance, as returned
-#'   by the model.matrix() function
+#'   by the [model.matrix()] function
 #' @return an object of class inheriting from "glm", as the output of the
-#'   glm.fit() function
-#'   
+#'   [glm.fit()] function
+#'
 #' @import stats
 #' @export
-#' 
+#'
 fit_quasibinomial <-
   function(id, x, mod) {
 

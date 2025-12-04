@@ -8,10 +8,10 @@ get_circrna_host_genes(circ_ids, gtf_gr)
 }
 \arguments{
 \item{circ_ids}{a list of circRNA identifiers in the form of
-chr:start-end[:strand]}
+\emph{chr:start-end:strand}}
 
 \item{gtf_gr}{a GenomicRanges object obtained from the Ensemble GTF gene
-annotation file (hint: use the rtracklayer::import() function)}
+annotation file (hint: use the \code{\link[rtracklayer:import]{rtracklayer::import()}} function)}
 }
 \value{
 a data.table of the genes overlapping each circRNA, one row for each

@@ -10,9 +10,11 @@ merge_lin_counts(prj_paths, groups = NULL, ...)
 \item{...}{additional parameters used in tximport::tximport()}
 }
 \value{
-a named list of two elements:
- 1) txi: a tximport object at transcript level
- 2) tx2gene: the transcript/gene ids table used in the txi object
+A named list with two elements:
+\itemize{
+\item \code{txi}: A \link[tximport:tximport]{tximport::tximport} object at transcript level.
+\item \code{tx2gene}: A table of transcript/gene IDs used in the \code{txi} object.
+}
 }
 \description{
 Merge multiple CirComPara2 runs to get linear transcript/gene expression

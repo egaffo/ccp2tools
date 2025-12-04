@@ -6,7 +6,7 @@
 #'   \code{read_statistics/read_stats_collect/processing_and_mapped_read_counts.csv}
 #'   files will be retrieved from each directory of the \code{prj_dirs} list.
 #'
-#' @return a \code{data.table} of read statistics, one row per sample
+#' @return a \link{data.table} of read statistics, one row per sample
 #' @export
 #'
 #' @examples \dontrun{
@@ -120,18 +120,20 @@ guess_strand <- function(strand_pattern, circ_methods = NULL) {
 #' @param is_list_file set TRUE if "files" is a text file listing the projects
 #'   to merge
 #'
-#' @return a data.table with the following columns:
-#' "sample_id"
-#' "chr", "start", "end", "strand"
-#' "read.count": the BJR count
-#' "n_methods": the number of the circRNA-detection tools that commonly
-#' identified the circRNA
-#' "circ_methods": the names of the circRNA-detection tools that commonly
-#' identified the circRNA in a bar-separated list alphanumerically sorted.
-#' E.g: "CIRCexplorer2_bwa|ciri_out|dcc"
-#' "circ_id": the circRNA identifier composed as chr:start-end[:strand]
-#' "strand_pattern": a string representing the number of reads and methods
-#' according to their strand(s). See also \link[ccp2tools]{guess_strand}.
+#' @return
+#' A `data.table` with the following columns:
+#' \itemize{
+#'   \item \code{sample_id}: Sample identifier.
+#'   \item \code{chr}, \code{start}, \code{end}, \code{strand}: Genomic coordinates and strand.
+#'   \item \code{read.count}: Backsplice junction read count (BJR).
+#'   \item \code{n_methods}: Number of circRNA-detection tools that commonly identified the circRNA.
+#'   \item \code{circ_methods}: Names of the circRNA-detection tools that commonly identified the circRNA,
+#'         in a bar-separated list, alphanumerically sorted.
+#'         Example: \code{"CIRCexplorer2_bwa|ciri_out|dcc"}.
+#'   \item \code{circ_id}: circRNA identifier composed as \code{chr:start-end:strand}.
+#'   \item \code{strand_pattern}: A string representing the number of reads and methods according to their strand(s).
+#'         See also \link[ccp2tools:guess_strand]{guess_strand}.
+#' }
 #' @export
 #'
 #' @examples
@@ -298,7 +300,7 @@ merge_ccp_counts <- function(files, groups = NULL) {
 #' Count the reads linearly spliced on the backsplice junctions
 #'
 #' @param files the CirComPara2 project directories
-#' @param circ_ids the list of backsplices in the form of chr:start-end[:strand]
+#' @param circ_ids the list of backsplices in the form of *chr:start-end:strand*
 #' @param is_stranded should the strand be considered? (default: TRUE)
 #' @param is_paired_end were the reads mapped as paired-end? (default: TRUE)
 #' @param cpus number of CPUs for parallel execution (default: 1)
@@ -497,9 +499,9 @@ merge_lin_bks_counts <- function(files, groups = NULL, ...) {
 #' Find circRNA host-gene(s)
 #'
 #' @param circ_ids a list of circRNA identifiers in the form of
-#' chr:start-end[:strand]
+#' *chr:start-end:strand*
 #' @param gtf_gr a GenomicRanges object obtained from the Ensemble GTF gene
-#'   annotation file (hint: use the rtracklayer::import() function)
+#'   annotation file (hint: use the [rtracklayer::import()] function)
 #'
 #' @return a data.table of the genes overlapping each circRNA, one row for each
 #' overlap.
@@ -562,9 +564,12 @@ get_circrna_host_genes <- function(circ_ids, gtf_gr) {
 #' @param prj_paths
 #' @param ... additional parameters used in tximport::tximport()
 #'
-#' @return a named list of two elements:
-#'  1) txi: a tximport object at transcript level
-#'  2) tx2gene: the transcript/gene ids table used in the txi object
+#' @return
+#' A named list with two elements:
+#' \itemize{
+#'   \item \code{txi}: A [tximport] object at transcript level.
+#'   \item \code{tx2gene}: A table of transcript/gene IDs used in the \code{txi} object.
+#' }
 #'
 #' @importFrom tximport tximport
 #' @export
@@ -704,19 +709,23 @@ merge_lin_counts <- function(prj_paths, groups = NULL, ...) {
 
 #' Combine the results of multiple CirComPara2 analyses
 #'
-#' This function will merge the otputs of multiple CirComPara2 analyses into
-#' single output result files. Specifically, it combines the circRNA expression
-#' of all samples from the different projects into one expression matrix
-#' reporting the backsplice junction read counts. Moreover, it also combines the
-#' read counts of the reads linearly spliced on the backsplice junctions. For
-#' the circRNAs not detected in all the projects it will calculate the linearly
-#' spliced read counts by parsing the linear alignment files.
+#' @description
+#' Merges the outputs of multiple [CirComPara2](https://github.com/egaffo/circompara2)
+#' result files.
+#'
+#' Specifically, it:
+#' \itemize{
+#'   \item Combines circRNA expression data from all samples across different projects
+#'         into a single expression matrix reporting backsplice junction read counts.
+#'   \item Aggregates read counts for reads linearly spliced on the backsplice junctions.
+#'   \item Merges the linear transcript/gene expression estimates.
+#' }
 #'
 #' @param files a character indicating the path of the parent directory of the
 #'   CirComPara2 runs to be combined. \code{files} child directories will be
 #'   scan to search for the CirComPara2 results to merge (i.e. the circRNA
 #'   backsplice read counts and linear read counts). \code{files} might also be
-#'   a file listing either (1) directories, (2) bks.counts.union.csv files, or
+#'   one file listing either (1) directories, (2) bks.counts.union.csv files, or
 #'   (3) a mix of directories and files.
 #' @param merge_circs \code{TRUE} to get merged backsplice read count matrix and
 #'   gene annotation of circRNAs (default: \code{TRUE})
@@ -745,22 +754,29 @@ merge_lin_counts <- function(prj_paths, groups = NULL, ...) {
 #'   option: provide a data frame with the chunk names as rownames (will be the
 #'   names you find under the "samples" directory generated by CirComPara2) and
 #'   one column that determines the grouping (f.i., the specimen)
-#' @param ... additional parameters that will be passed to the tximport function
-#'   for linear gene expression
-#' @return a list of six elements: (1) \code{circ_read_count_mt}: the matrix of
-#'   the merged samples'backspliced read counts, \code{merge_circs = TRUE},
-#'   \code{NA} otherwise; (2) \code{lin_read_count_mt}: the matrix of the merged
-#'   samples' backsplice linear read counts if \code{merge_lin_bks = TRUE},
-#'   \code{NA} otherwise; (3) \code{circ_gene_anno}: the circRNA host-gene
-#'   annotation; and (4) \code{lin_xpr}: a list of two elements, namely the
-#'   linear transcript expression as a \code{tximport} result and the associated
-#'   \code{tx2gene} data frame, if \code{merge_lin = TRUE}, \code{NA} otherwise;
-#'   \code{read_stats}: a data frame with the merged read count statistics;
-#'   \code{gene_anno}: the GenomicRanges representation of the gene annotation
-#'   GTF file.
+#' @param ... additional parameters that will be passed to the [tximport::tximport()]
+#'  function for linear gene expression
+#' @return a list of six elements:
+#'  \enumerate{
+#'    \item {\code{circ_read_count_mt}}: the matrix of the merged samples'
+#'    backspliced read counts, \code{merge_circs = TRUE}, \code{NA} otherwise;
+#'    \item {\code{lin_read_count_mt}}: the matrix of the merged samples'
+#'    backsplice linear read counts if \code{merge_lin_bks = TRUE}, \code{NA}
+#'    otherwise;
+#'    \item {\code{circ_gene_anno}}: the circRNA host-gene annotation;
+#'    \item {\code{lin_xpr}}: a list of two elements, namely the linear
+#'    transcript expression as a [tximport::tximport()] result and the associated
+#'    \code{tx2gene} data frame, if \code{merge_lin = TRUE}, \code{NA} otherwise;
+#'    \item {\code{read_stats}}: a data frame with the merged read count
+#'    statistics;
+#'    \item {\code{gene_anno}}: the \link{GenomicRanges} representation of the gene
+#'    annotation GTF file.
+#'   }
 #' @import data.table Rsubread tximport GenomicRanges
 #' @importFrom rtracklayer import
 #' @export
+#'
+#' @seealso [to_summarized_experiment()]
 #'
 #' @examples \dontrun{
 #'

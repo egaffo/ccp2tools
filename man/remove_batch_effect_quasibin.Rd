@@ -13,8 +13,9 @@ remove_batch_effect_quasibin(
 )
 }
 \arguments{
-\item{x}{numeric matrix containing proportion (i.e. [0..1]) values for a
-series of samples. Rows correspond to probes and columns to samples.}
+\item{x}{numeric matrix containing proportion (i.e., real numbers between 0
+and 1) values for a series of samples. Rows correspond to probes and
+columns to samples.}
 
 \item{batch}{factor or vector indicating batches.}
 
@@ -26,12 +27,12 @@ series of samples. Rows correspond to probes and columns to samples.}
 }
 \value{
 A numeric matrix of proportion values with batch and covariate
-  effects removed.
+effects removed.
 }
 \description{
 A function to remove batch effects from a matrix of proportion values. Like
-the homonymous function from the limma package but for values in the range
-[0..1]. Useful to correct batch effects from CLP matrices.
+the homonymous function from the limma package but for values between 0 and 1.
+Useful to correct batch effects from CLP matrices.
 }
 \seealso{
 limma::removeBatchEffect()

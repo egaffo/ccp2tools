@@ -14,7 +14,7 @@ to be merged.
 files will be retrieved from each directory of the \code{prj_dirs} list.}
 }
 \value{
-a \code{data.table} of read statistics, one row per sample
+a \link{data.table} of read statistics, one row per sample
 }
 \description{
 Merge read statistics (preprocessing and alignments) of multiple CirComPara2

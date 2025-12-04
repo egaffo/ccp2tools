@@ -15,7 +15,7 @@ compute_lin_bks_counts(
 \arguments{
 \item{files}{the CirComPara2 project directories}
 
-\item{circ_ids}{the list of backsplices in the form of chr:start-end[:strand]}
+\item{circ_ids}{the list of backsplices in the form of \emph{chr:start-end:strand}}
 
 \item{is_stranded}{should the strand be considered? (default: TRUE)}
 
@@ -25,7 +25,7 @@ compute_lin_bks_counts(
 }
 \value{
 a matrix with circRNAs as rows and samples as columns and counts in
-  the cells
+the cells
 }
 \description{
 Count the reads linearly spliced on the backsplice junctions

@@ -14,18 +14,19 @@ of multiple CirComPara2 run to merge.}
 to merge}
 }
 \value{
-a data.table with the following columns:
-"sample_id"
-"chr", "start", "end", "strand"
-"read.count": the BJR count
-"n_methods": the number of the circRNA-detection tools that commonly
-identified the circRNA
-"circ_methods": the names of the circRNA-detection tools that commonly
-identified the circRNA in a bar-separated list alphanumerically sorted.
-E.g: "CIRCexplorer2_bwa|ciri_out|dcc"
-"circ_id": the circRNA identifier composed as chr:start-end[:strand]
-"strand_pattern": a string representing the number of reads and methods
-according to their strand(s). See also \link[ccp2tools]{guess_strand}.
+A \code{data.table} with the following columns:
+\itemize{
+\item \code{sample_id}: Sample identifier.
+\item \code{chr}, \code{start}, \code{end}, \code{strand}: Genomic coordinates and strand.
+\item \code{read.count}: Backsplice junction read count (BJR).
+\item \code{n_methods}: Number of circRNA-detection tools that commonly identified the circRNA.
+\item \code{circ_methods}: Names of the circRNA-detection tools that commonly identified the circRNA,
+in a bar-separated list, alphanumerically sorted.
+Example: \code{"CIRCexplorer2_bwa|ciri_out|dcc"}.
+\item \code{circ_id}: circRNA identifier composed as \code{chr:start-end:strand}.
+\item \code{strand_pattern}: A string representing the number of reads and methods according to their strand(s).
+See also \link[ccp2tools:guess_strand]{guess_strand}.
+}
 }
 \description{
 Compute the backsplice junction read (BJR) counts according to the
