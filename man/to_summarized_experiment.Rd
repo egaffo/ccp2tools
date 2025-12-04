@@ -2,25 +2,36 @@
 % Please edit documentation in R/summarized_experiment.R
 \name{to_summarized_experiment}
 \alias{to_summarized_experiment}
-\title{Convert the result of combine_ccp2_runs() into a SummarizedExperiment object}
+\title{Convert the result of \link{combine_ccp2_runs} into a SummarizedExperiment object}
 \usage{
-to_summarized_experiment(combined_prjs, assay = c("circrna", "gene", "trx"))
+to_summarized_experiment(
+  combined_prjs,
+  assay = c("circrna", "gene", "trx"),
+  metadata = NULL,
+  coldata = NULL
+)
 }
 \arguments{
 \item{combined_prjs}{a named list, as resulting from the
-\link[combine_ccp2_runs]{ccp2tools::combine_ccp2_runs()} function. Must include the following entries:
+\link{combine_ccp2_runs} function. Must include the following entries:
 circ_read_count_mt, lin_read_count_mt, circ_gene_anno, lin_xpr, read_stats,
 gene_anno.}
 
-\item{assays}{select which RNA assay to extract among "circrna", "gene", or
+\item{assay}{select which RNA assay to extract among "circrna", "gene", or
 "trx" for circrna-, gene-, or transcript-level expression analysis.}
+
+\item{metadata}{a data.frame with additional metadata to include into the
+SummarizedExperiment. Rownames must match sample names.}
+
+\item{coldata}{a data.frame with additional sample data to include into the
+SummarizedExperiment}
 }
 \value{
 a \link{SummarizedExperiment} object for circrna assay; a
- \link{RangedSummarizedExperiment} if gene or transcript assay
+\link{RangedSummarizedExperiment} if gene or transcript assay
 }
 \description{
-Convert the result of combine_ccp2_runs() into a SummarizedExperiment object
+Convert the result of \link{combine_ccp2_runs} into a SummarizedExperiment object
 }
 \examples{
 \dontrun{

@@ -25,3 +25,4 @@ Imports:
     aod,
     SummarizedExperiment
 RoxygenNote: 7.3.3
+Roxygen: list(markdown = TRUE)
