@@ -161,6 +161,10 @@ merge_ccp_counts <- function(files, groups = NULL) {
                                              simplify = FALSE),
                                       use.names = TRUE)
 
+  if(!"strand" %in% colnames(ccp_counts)) {
+    ccp_counts$strand <- "*"
+  }
+
   ## merge sample chunks
   if (!is.null(groups)) {
     message("Merging counts from sample splits...")
