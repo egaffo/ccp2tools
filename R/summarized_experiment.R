@@ -49,6 +49,12 @@ to_summarized_experiment <-
                                   row.names = "Sample",
                                   check.names = F)
 
+    if(nrow(sample_metadata) == 1) {
+      rname <- sample_metadata$Sample
+      sample_metadata <- sample_metadata[, 2:ncol(sample_metadata)]
+      rownames(sample_metadata) <- rname
+    }
+
     # ---- circRNA-level ----
     if (assay == "circrna") {
       ## gene annotation for the circRNAs
@@ -83,7 +89,8 @@ to_summarized_experiment <-
       )
 
       se <- SummarizedExperiment::SummarizedExperiment(
-        assays = list(counts = count_data, linCounts = lin_count_data),
+        assays = list(counts = count_data,
+                      linCounts = lin_count_data[rownames(count_data), , drop = F]),
         colData = sample_metadata,
         # rowData = gene_metadata
         metadata = list(circrna_host_gene = circrna_hosts,
