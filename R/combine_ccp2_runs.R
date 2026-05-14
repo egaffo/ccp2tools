@@ -39,7 +39,7 @@ merge_read_stats <- function(prj_dirs, groups = NULL) {
       },
       simplify = FALSE,
       USE.NAMES = FALSE
-    ))
+    ), fill = TRUE)
 
   if (!is.null(groups)) {
     ## sum up read counts from the sample splits
