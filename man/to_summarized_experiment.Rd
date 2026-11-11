@@ -2,7 +2,7 @@
 % Please edit documentation in R/summarized_experiment.R
 \name{to_summarized_experiment}
 \alias{to_summarized_experiment}
-\title{Convert the result of \link{combine_ccp2_runs} into a SummarizedExperiment object}
+\title{Convert combined CirComPara2 runs into a SummarizedExperiment}
 \usage{
 to_summarized_experiment(
   combined_prjs,
@@ -11,46 +11,53 @@ to_summarized_experiment(
 )
 }
 \arguments{
-\item{combined_prjs}{A named list, as returned by the \link{combine_ccp2_runs} function.
-Must include the following entries:
+\item{combined_prjs}{A named list, as returned by \code{\link[=combine_ccp2_runs]{combine_ccp2_runs()}}.
+Must include \code{read_stats} and, depending on \code{assay}:
 \itemize{
-\item \code{circ_read_count_mt}
-\item \code{lin_read_count_mt}
-\item \code{circ_gene_anno}
-\item \code{lin_xpr}
-\item \code{read_stats}
-\item \code{gene_anno}
+\item \code{"circrna"}: \code{circ_read_count_mt}, \code{lin_read_count_mt}, \code{circ_gene_anno};
+\item \code{"gene"}, \code{"trx"}: \code{lin_xpr} (with \code{txi} and \code{tx2gene}) and \code{gene_anno}.
 }}
 
-\item{assay}{select which RNA assay to extract among "circrna", "gene", or
-"trx" for circrna-, gene-, or transcript-level expression analysis.}
+\item{assay}{Expression level to extract: \code{"circrna"}, \code{"gene"} or \code{"trx"}
+(transcript).}
 
-\item{coldata}{a data.frame with additional sample data to include into the
-\link{SummarizedExperiment}}
+\item{coldata}{Optional \code{data.frame} of extra sample annotation, with sample
+IDs as row names; added with \code{\link[=attach_coldata]{attach_coldata()}}.}
 }
 \value{
-a \link{RangedSummarizedExperiment} object
+A \link[SummarizedExperiment:RangedSummarizedExperiment-class]{RangedSummarizedExperiment}:
+\itemize{
+\item \code{"circrna"}: assays \code{counts} (backspliced reads) and \code{linCounts}
+(linearly spliced reads on the backsplice ends); host genes in
+\code{rowData()} as \code{host_gene_id} and \code{host_gene_name} (\code{NA} if intergenic);
+the full circRNA-gene annotation in \code{metadata()$circ_gene_anno}.
+\item \code{"gene"}, \code{"trx"}: assays \code{counts}, \code{abundance} (TPM) and \code{length}
+(average transcript length); \code{metadata()$countsFromAbundance} records
+how counts were derived.
+}
+
+Sample read statistics are in \code{colData()}, in count-matrix column order.
 }
 \description{
-Convert the result of \link{combine_ccp2_runs} into a SummarizedExperiment object
+Builds a tool-neutral \link[SummarizedExperiment:RangedSummarizedExperiment-class]{RangedSummarizedExperiment}
+at circRNA, gene or transcript level from the output of
+\code{\link[=combine_ccp2_runs]{combine_ccp2_runs()}}. Counts are stored as quantified (not rounded); use
+\code{\link[=se_to_dds]{se_to_dds()}}, \code{\link[=se_to_dgelist]{se_to_dgelist()}} or \code{\link[=se_to_voom_input]{se_to_voom_input()}} to prepare the
+object for a specific differential-expression framework.
 }
 \examples{
 \dontrun{
-
-library(ccp2tools)
-
 prjs <- c("/home/user/ccp2_nf/sample1",
           "/home/user/ccp2_nf/sample2")
-
 combined_prjs <- combine_ccp2_runs(prjs)
 
-circrna_se <- to_summarized_experiment(combined_prjs = combined_prjs)
+circrna_se <- to_summarized_experiment(combined_prjs)
+gene_se    <- to_summarized_experiment(combined_prjs, assay = "gene")
+trx_se     <- to_summarized_experiment(combined_prjs, assay = "trx")
 
-gene_se <- to_summarized_experiment(combined_prjs = combined_prjs,
-                                    assay = "gene")
-
-trx_se <- to_summarized_experiment(combined_prjs = combined_prjs,
-                                    assay = "trx")
+dds <- se_to_dds(gene_se, design = ~ 1)
 }
-
+}
+\seealso{
+\code{\link[=se_to_dds]{se_to_dds()}}, \code{\link[=se_to_dgelist]{se_to_dgelist()}}, \code{\link[=se_to_voom_input]{se_to_voom_input()}}
 }

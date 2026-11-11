@@ -12,7 +12,7 @@ merge_lin_counts(prj_paths, groups = NULL, ...)
 \value{
 A named list with two elements:
 \itemize{
-\item \code{txi}: A \link[tximport:tximport]{tximport::tximport} object at transcript level.
+\item \code{txi}: A \link[tximport:tximport]{tximport} object at transcript level.
 \item \code{tx2gene}: A table of transcript/gene IDs used in the \code{txi} object.
 }
 }

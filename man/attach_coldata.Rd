@@ -2,31 +2,30 @@
 % Please edit documentation in R/summarized_experiment.R
 \name{attach_coldata}
 \alias{attach_coldata}
-\title{Attach columns to existing data.frame and checks whether row and column names
-are consistent.}
+\title{Add sample annotation columns to an existing column-data table}
 \usage{
 attach_coldata(se_coldata, extra_coldata)
 }
 \arguments{
-\item{se_coldata}{the original data.frame to extend}
+\item{se_coldata}{A \code{data.frame} or \link[S4Vectors:DataFrame]{S4Vectors::DataFrame} with sample IDs
+as row names, typically \code{SummarizedExperiment::colData(se)}.}
 
-\item{extra_coldata}{a data.frame with the additional columns to add. Row
-and column names must be consistent with the original data.frame, i.e., the
-extra_coldata must include all row names and none colnames of the original
-data.frame}
+\item{extra_coldata}{A \code{data.frame} with sample IDs as row names. It must
+contain every row name of \code{se_coldata} and none of its column names.}
 }
 \value{
-a data.frame with the extra columns attached
+An object of the same class as \code{se_coldata}, with the columns of
+\code{extra_coldata} appended and rows in the original order.
 }
 \description{
-Attach columns to existing data.frame and checks whether row and column names
-are consistent.
+Appends the columns of \code{extra_coldata} to \code{se_coldata}, matching rows by
+row name (sample ID). Fails if any sample of \code{se_coldata} is missing from
+\code{extra_coldata}, or if a column would be duplicated. Extra rows in
+\code{extra_coldata} are ignored.
 }
 \examples{
-\dontrun{
-extra_cols <-
-  data.frame(condition = rep_len("A", rownames(colData(se))),
-             row.names = rownames(colData(se)))
-colData(se) <- attach_coldata(colData(se), extra_cols)
-}
+cd <- S4Vectors::DataFrame(`Raw reads` = c(1e6, 2e6), check.names = FALSE,
+                           row.names = c("s1", "s2"))
+extra <- data.frame(condition = c("B", "A"), row.names = c("s2", "s1"))
+attach_coldata(cd, extra)
 }

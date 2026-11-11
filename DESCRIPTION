@@ -23,6 +23,9 @@ Imports:
     rtracklayer,
     BiocParallel,
     aod,
-    SummarizedExperiment
-RoxygenNote: 7.3.3
+    SummarizedExperiment,
+    S4Vectors,
+    utils
+Suggests: DESeq2, edgeR
 Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.1.1

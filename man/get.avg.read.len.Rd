@@ -6,9 +6,6 @@
 \usage{
 get.avg.read.len(fastqc_data.txt.file)
 }
-\arguments{
-\item{fastqc_data.txt.file}{}
-}
 \description{
 Parse a fastqc_data.txt file and computes the average read length
 TODO: improve by parsing "fastqc_data.txt" and get the mode instead of

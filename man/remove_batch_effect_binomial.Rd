@@ -12,9 +12,6 @@ remove_batch_effect_binomial(
   ...
 )
 }
-\arguments{
-\item{...}{}
-}
 \description{
 A function to remove batch effects from a matrix of proportion
 values. Like the homonymous function from the limma package but for values in
