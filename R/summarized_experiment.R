@@ -44,34 +44,56 @@
   sample_metadata[samples, cols, drop = FALSE]
 }
 
+#' Collapse unique non-NA values into one string
+#'
+#' @param x An atomic vector.
+#'
+#' @returns A length-1 character: unique non-`NA` values of `x` joined by
+#'   `"|"`, or `NA_character_` if all values are `NA`.
+#' @noRd
+.collapse_na <- function(x) {
+  x <- unique(x[!is.na(x)])
+  if (length(x)) paste(x, collapse = "|") else NA_character_
+}
+
 #' Build the circRNA-level SummarizedExperiment
+#'
+#' Missing linear counts in the source table are read as zero. circRNAs or
+#' samples absent from the linear table get `NA` in `linCounts`, with a
+#' warning.
 #'
 #' @param combined_prjs Output of [combine_ccp2_runs()].
 #' @param sample_metadata Sample `data.frame` from `.df_with_rownames()`.
 #'
 #' @returns A `RangedSummarizedExperiment` with assays `counts` (backspliced
-#'   reads) and `linCounts` (linearly spliced reads on the backsplice ends).
+#'   reads) and `linCounts` (linearly spliced reads on the backsplice ends),
+#'   and host genes in `rowData()` as `host_gene_id` and `host_gene_name`
+#'   (multiple hosts joined by `"|"`; `NA` if intergenic or unannotated).
 #' @importFrom data.table .SD
 #' @noRd
 .se_circrna <- function(combined_prjs, sample_metadata) {
   bks <- as.matrix(.df_with_rownames(combined_prjs$circ_read_count_mt, "circ_id"))
-  lin <- as.matrix(.df_with_rownames(combined_prjs$lin_read_count_mt, "circ_id"))
   circ_ids <- rownames(bks)
   samples  <- colnames(bks)
+  lin <- as.matrix(.df_with_rownames(combined_prjs$lin_read_count_mt, "circ_id"))
+  lin[is.na(lin)] <- 0  # assumes quantifier omits zero linear counts
   
-  lin <- lin[match(circ_ids, rownames(lin)), match(samples, colnames(lin)), drop = FALSE]
+  ri <- match(circ_ids, rownames(lin))
+  ci <- match(samples, colnames(lin))
+  if (anyNA(ri))
+    warning(sum(is.na(ri)), " circRNAs absent from linear counts (set to NA)",
+            call. = FALSE)
+  if (anyNA(ci))
+    warning(sum(is.na(ci)), " samples absent from linear counts (set to NA)",
+            call. = FALSE)
+  
+  lin <- lin[ri, ci, drop = FALSE]
   dimnames(lin) <- list(circ_ids, samples)
-  if (anyNA(lin))
-    warning(
-      sum(!stats::complete.cases(lin)),
-      " circRNAs have missing linear counts (set to NA)",
-      call. = FALSE
-    )
   
-  ## one host-gene line per circRNA; intergenic -> NA
-  hosts <- unique(data.table::as.data.table(combined_prjs$circ_gene_anno)[, c("circ_id", "gene_id", "gene_name")])
-  hosts <- hosts[, lapply(.SD, function(x)
-    paste(unique(x), collapse = "|")), by = "circ_id"]
+  ## one host-gene line per circRNA; intergenic or unannotated -> NA
+  hosts <- unique(data.table::as.data.table(combined_prjs$circ_gene_anno)[
+    , c("circ_id", "gene_id", "gene_name")])
+  hosts <- hosts[, lapply(.SD, .collapse_na), by = "circ_id"]
   h <- match(circ_ids, hosts$circ_id)
   
   ## TODO: check circ_id format (strand?) parses as intended
@@ -159,6 +181,10 @@
 }
 
 #' Check that a converter's suggested package is installed
+#'
+#' @param pkg Package name.
+#'
+#' @returns `TRUE`, invisibly; stops with an install hint if `pkg` is missing.
 #' @noRd
 .require_suggested <- function(pkg) {
   if (!requireNamespace(pkg, quietly = TRUE))
@@ -172,6 +198,25 @@
       call. = FALSE
     )
   invisible(TRUE)
+}
+
+#' Row annotation as a data.frame for `edgeR::DGEList(genes = )`
+#'
+#' Keeps only atomic `rowData()` columns, since list columns (e.g.
+#' `CharacterList`) do not convert to a `data.frame`.
+#'
+#' @param se A `SummarizedExperiment`.
+#'
+#' @returns A `data.frame` with the original column names, or `NULL` if no
+#'   atomic column is left.
+#' @noRd
+.rowdata_df <- function(se) {
+  rd <- SummarizedExperiment::rowData(se)
+  keep <- vapply(rd, is.atomic, logical(1))
+  if (any(keep))
+    as.data.frame(rd[, keep, drop = FALSE], optional = TRUE)
+  else
+    NULL
 }
 
 #' Add sample annotation columns to an existing column-data table
@@ -232,9 +277,11 @@ attach_coldata <- function(se_coldata, extra_coldata) {
 #'
 #' @returns A \link[SummarizedExperiment:RangedSummarizedExperiment-class]{RangedSummarizedExperiment}:
 #'   * `"circrna"`: assays `counts` (backspliced reads) and `linCounts`
-#'     (linearly spliced reads on the backsplice ends); host genes in
-#'     `rowData()` as `host_gene_id` and `host_gene_name` (`NA` if intergenic);
-#'     the full circRNA-gene annotation in `metadata()$circ_gene_anno`.
+#'     (linearly spliced reads on the backsplice ends; missing source values
+#'     read as zero); host genes in `rowData()` as `host_gene_id` and
+#'     `host_gene_name` (multiple hosts joined by `"|"`; `NA` if intergenic or
+#'     unannotated); the full circRNA-gene annotation in
+#'     `metadata()$circ_gene_anno`.
 #'   * `"gene"`, `"trx"`: assays `counts`, `abundance` (TPM) and `length`
 #'     (average transcript length); `metadata()$countsFromAbundance` records
 #'     how counts were derived.
@@ -321,7 +368,8 @@ to_summarized_experiment <- function(combined_prjs,
 #' @param design A formula or model matrix, passed to `DESeq2::DESeqDataSet()`.
 #' @param ... Further arguments passed to `DESeq2::DESeqDataSet()`.
 #'
-#' @returns A `DESeqDataSet`.
+#' @returns A `DESeqDataSet`; `rowData(se)` (e.g. host genes for circRNAs) is
+#'   kept and returned by `DESeq2::results()` via `mcols()`.
 #' @seealso [se_to_dgelist()], [se_to_voom_input()]
 #' @export
 #'
@@ -379,8 +427,9 @@ se_to_dds <- function(se, design, ...) {
 #' @param group Optional vector or factor of sample groups, passed to
 #'   `edgeR::DGEList()`.
 #'
-#' @returns A `DGEList`, with `colData(se)` in `$samples` and `rowData(se)` in
-#'   `$genes`.
+#' @returns A `DGEList`, with `colData(se)` in `$samples` and the atomic
+#'   `rowData(se)` columns in `$genes` (e.g. `host_gene_id` and
+#'   `host_gene_name` for circRNAs), carried through to `edgeR::topTags()`.
 #' @seealso [se_to_dds()], [se_to_voom_input()]
 #' @export
 #'
@@ -404,15 +453,13 @@ se_to_dgelist <- function(se, group = NULL) {
   .require_suggested("edgeR")
   cts <- SummarizedExperiment::assay(se, "counts")
   cfa <- S4Vectors::metadata(se)$countsFromAbundance
-  genes <- as.data.frame(SummarizedExperiment::rowData(se))
+  
+  ## row annotation -> y$genes, carried through to topTags()
   y <- edgeR::DGEList(
     cts,
     group   = group,
-    samples = as.data.frame(SummarizedExperiment::colData(se)),
-    genes   = if (ncol(genes) > 0)
-      genes
-    else
-      NULL
+    genes   = .rowdata_df(se),
+    samples = as.data.frame(SummarizedExperiment::colData(se), optional = TRUE)
   )
   if (identical(cfa, "no") &&
       "length" %in% SummarizedExperiment::assayNames(se)) {
@@ -439,8 +486,10 @@ se_to_dgelist <- function(se, group = NULL) {
 #'
 #' @inheritParams se_to_dgelist
 #'
-#' @returns A `DGEList` with TMM normalization factors and `colData(se)` in
-#'   `$samples`.
+#' @returns A `DGEList` with TMM normalization factors, `colData(se)` in
+#'   `$samples` and the atomic `rowData(se)` columns in `$genes` (e.g.
+#'   `host_gene_id` and `host_gene_name` for circRNAs), carried through
+#'   `limma::voom()` and `limma::lmFit()` to `limma::topTable()`.
 #' @seealso [se_to_dds()], [se_to_dgelist()]
 #' @export
 #'
@@ -470,10 +519,13 @@ se_to_voom_input <- function(se, group = NULL) {
       "re-import with countsFromAbundance = 'lengthScaledTPM'",
       call. = FALSE
     )
+  
+  ## row annotation -> y$genes, carried through voom/lmFit to topTable()
   y <- edgeR::DGEList(
     SummarizedExperiment::assay(se, "counts"),
     group   = group,
-    samples = as.data.frame(SummarizedExperiment::colData(se))
+    genes   = .rowdata_df(se),
+    samples = as.data.frame(SummarizedExperiment::colData(se), optional = TRUE)
   )
   edgeR::calcNormFactors(y)
 }
