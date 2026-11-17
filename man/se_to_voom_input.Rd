@@ -13,8 +13,10 @@ se_to_voom_input(se, group = NULL)
 \code{edgeR::DGEList()}.}
 }
 \value{
-A \code{DGEList} with TMM normalization factors and \code{colData(se)} in
-\verb{$samples}.
+A \code{DGEList} with TMM normalization factors, \code{colData(se)} in
+\verb{$samples} and the atomic \code{rowData(se)} columns in \verb{$genes} (e.g.
+\code{host_gene_id} and \code{host_gene_name} for circRNAs), carried through
+\code{limma::voom()} and \code{limma::lmFit()} to \code{limma::topTable()}.
 }
 \description{
 Creates a TMM-normalized \code{DGEList} ready for \code{limma::voom()}. voom cannot

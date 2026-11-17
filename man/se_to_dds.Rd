@@ -15,7 +15,8 @@ se_to_dds(se, design, ...)
 \item{...}{Further arguments passed to \code{DESeq2::DESeqDataSet()}.}
 }
 \value{
-A \code{DESeqDataSet}.
+A \code{DESeqDataSet}; \code{rowData(se)} (e.g. host genes for circRNAs) is
+kept and returned by \code{DESeq2::results()} via \code{mcols()}.
 }
 \description{
 Creates a \code{DESeqDataSet} following the same logic as

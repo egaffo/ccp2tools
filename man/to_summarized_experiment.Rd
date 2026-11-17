@@ -28,9 +28,11 @@ IDs as row names; added with \code{\link[=attach_coldata]{attach_coldata()}}.}
 A \link[SummarizedExperiment:RangedSummarizedExperiment-class]{RangedSummarizedExperiment}:
 \itemize{
 \item \code{"circrna"}: assays \code{counts} (backspliced reads) and \code{linCounts}
-(linearly spliced reads on the backsplice ends); host genes in
-\code{rowData()} as \code{host_gene_id} and \code{host_gene_name} (\code{NA} if intergenic);
-the full circRNA-gene annotation in \code{metadata()$circ_gene_anno}.
+(linearly spliced reads on the backsplice ends; missing source values
+read as zero); host genes in \code{rowData()} as \code{host_gene_id} and
+\code{host_gene_name} (multiple hosts joined by \code{"|"}; \code{NA} if intergenic or
+unannotated); the full circRNA-gene annotation in
+\code{metadata()$circ_gene_anno}.
 \item \code{"gene"}, \code{"trx"}: assays \code{counts}, \code{abundance} (TPM) and \code{length}
 (average transcript length); \code{metadata()$countsFromAbundance} records
 how counts were derived.

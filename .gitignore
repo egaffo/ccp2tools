@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Rprofile
+.Rsubread*
+*.Rproj
+_tests.R
+.Renviron
+renv/

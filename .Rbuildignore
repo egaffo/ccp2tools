@@ -1,0 +1,7 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^renv\.lock$
+^\.github$
+^renv$
+^\.Renviron$
+^dev$

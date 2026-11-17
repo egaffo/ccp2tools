@@ -13,8 +13,9 @@ se_to_dgelist(se, group = NULL)
 \code{edgeR::DGEList()}.}
 }
 \value{
-A \code{DGEList}, with \code{colData(se)} in \verb{$samples} and \code{rowData(se)} in
-\verb{$genes}.
+A \code{DGEList}, with \code{colData(se)} in \verb{$samples} and the atomic
+\code{rowData(se)} columns in \verb{$genes} (e.g. \code{host_gene_id} and
+\code{host_gene_name} for circRNAs), carried through to \code{edgeR::topTags()}.
 }
 \description{
 Creates a \code{DGEList}. When \code{metadata(se)$countsFromAbundance == "no"} and a
