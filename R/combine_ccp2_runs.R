@@ -659,7 +659,8 @@ merge_lin_counts <- function(prj_paths, groups = NULL, ...) {
           formula = trx_id ~ sample_id,
           value.var = "value"
         ),
-        row.names = "trx_id"
+        row.names = "trx_id",
+        check.names = FALSE
       ))
 
     txi$counts <-
@@ -677,7 +678,8 @@ merge_lin_counts <- function(prj_paths, groups = NULL, ...) {
           formula = trx_id ~ sample_id,
           value.var = "value"
         ),
-        row.names = "trx_id"
+        row.names = "trx_id",
+        check.names = FALSE
       ))
 
     lengths_merged <-
@@ -704,7 +706,8 @@ merge_lin_counts <- function(prj_paths, groups = NULL, ...) {
           formula = trx_id ~ sample_id,
           value.var = "value"
         ),
-        row.names = "trx_id"
+        row.names = "trx_id",
+        check.names = FALSE
       ))
   }
 
