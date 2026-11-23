@@ -1,5 +1,11 @@
 # ccp2tools 0.2.1
 
+## Bug fixes
+* `merge_lin_counts()` (used by `combine_ccp2_runs()`) no longer renames sample IDs
+  (e.g. "992-001" -> "X992.001") when merging sample chunks with `groups`. The gene and
+  transcript matrices now match `read_stats$Sample`, so `to_summarized_experiment()`
+  works for `assay = "gene"` and `"trx"`.
+
 # ccp2tools 0.2.0
 
 ## New features
